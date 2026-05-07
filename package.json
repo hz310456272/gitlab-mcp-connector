@@ -1,0 +1,50 @@
+{
+  "name": "gitlab-mcp-connector",
+  "version": "0.1.0",
+  "description": "A read-only MCP server for GitLab — summarize MRs, review code, check pipelines, diagnose CI failures.",
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "gitlab-mcp-connector": "./dist/server.js"
+  },
+  "files": [
+    "dist/",
+    "docs/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ tests/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": ["mcp", "gitlab", "code-review", "ci-cd"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hz310456272/gitlab-mcp-connector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hz310456272/gitlab-mcp-connector/issues"
+  },
+  "homepage": "https://github.com/hz310456272/gitlab-mcp-connector#readme",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0",
+    "undici": "^6.25.0",
+    "vitest": "^3.0.0"
+  }
+}
