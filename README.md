@@ -125,11 +125,89 @@ This server **never** performs write operations: no merge, approve, push, retry,
 
 See the `examples/` directory for configuration snippets:
 
-- `examples/claude-code/` — Claude Code MCP config
+- `examples/claude-code/` — Claude Code MCP config + wrapper script
 - `examples/codex/` — Codex MCP config template
 - `examples/cursor/` — Cursor MCP config
 
 All examples use placeholder values. Do not commit real tokens to MCP config files.
+
+### Claude Code + Self-Hosted GitLab (recommended setup)
+
+Do **not** put your GitLab token directly in `~/.claude.json`. Instead, use a wrapper script that loads the token from a separate env file.
+
+#### Step 1: Create an env file
+
+Save your GitLab URL and token in a dedicated file (not committed to any repo):
+
+```bash
+# ~/.env.gitlab-mcp
+GITLAB_BASE_URL=https://gitlab.example.com
+GITLAB_TOKEN=your-personal-access-token
+```
+
+Restrict permissions: `chmod 600 ~/.env.gitlab-mcp`
+
+#### Step 2: Create a MCP config file
+
+```json
+// ~/.config/gitlab-mcp-connector/config.json
+{
+  "defaultHost": "company",
+  "hosts": {
+    "company": {
+      "baseUrl": "https://gitlab.example.com",
+      "tokenEnv": "GITLAB_TOKEN"
+    }
+  }
+}
+```
+
+Update your env file to add: `GITLAB_MCP_CONFIG=/path/to/config.json`
+
+#### Step 3: Set up the wrapper script
+
+Copy `examples/claude-code/run-gitlab-mcp.sh` to a location on your machine:
+
+```bash
+cp examples/claude-code/run-gitlab-mcp.sh ~/.local/bin/run-gitlab-mcp.sh
+chmod +x ~/.local/bin/run-gitlab-mcp.sh
+```
+
+Edit the script to set `SERVER_PATH` to your installed `dist/server.js` path, or set `GITLAB_MCP_SERVER_PATH` in the env file.
+
+The wrapper sources your env file (loading `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `GITLAB_MCP_CONFIG`, etc.) and then execs the server.
+
+Override paths with environment variables:
+- `GITLAB_MCP_ENV_FILE` — path to env file (default: `~/.env.gitlab-mcp`)
+- `GITLAB_MCP_SERVER_PATH` — path to `dist/server.js`
+
+#### Step 4: Configure Claude Code
+
+Edit `~/.claude.json` (or your project `.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "gitlab": {
+      "command": "/absolute/path/to/run-gitlab-mcp.sh"
+    }
+  }
+}
+```
+
+Restart Claude Code after changing MCP config.
+
+#### Troubleshooting
+
+If tools don't appear in Claude Code:
+
+1. Check `~/.claude.json` has the correct `mcpServers` entry
+2. Verify the wrapper script is executable: `ls -la /path/to/run-gitlab-mcp.sh`
+3. Verify the env file exists and has `GITLAB_TOKEN` set: `source ~/.env.gitlab-mcp && echo $GITLAB_TOKEN | head -c 4`
+4. Test the server manually: `~/.local/bin/run-gitlab-mcp.sh` then type `{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"0.0.1"}}}` + Enter + Ctrl+D
+5. Check that `node /path/to/dist/server.js` can start without errors
+
+This is a **read-only** connector. It cannot merge MRs, post comments, retry pipelines, or modify any GitLab resource.
 
 ## Self-Hosted GitLab
 
