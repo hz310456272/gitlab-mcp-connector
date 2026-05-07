@@ -1,9 +1,9 @@
 {
-  "_comment": "Add this to your Claude Code MCP settings. Replace the GITLAB_MCP_CONFIG path with your actual config file location. Do NOT put real tokens in this file.",
+  "_comment": "Add this to your Claude Code MCP settings. Build the repo first, replace server/config paths, and do NOT put real tokens in this file.",
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "gitlab-mcp-connector"],
+      "command": "node",
+      "args": ["/absolute/path/to/gitlab-mcp-connector/dist/server.js"],
       "env": {
         "GITLAB_MCP_CONFIG": "/absolute/path/to/gitlab-mcp-config.json"
       }

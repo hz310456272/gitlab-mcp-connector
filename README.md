@@ -14,16 +14,21 @@ Enables AI coding agents (Claude Code, Codex, Cursor, etc.) to summarize MRs, re
 
 ## Quick Start
 
+The npm package is not published yet. Install from source for now:
+
 ```bash
-# Install
-npm install -g gitlab-mcp-connector
+# Clone and build
+git clone https://github.com/hz310456272/gitlab-mcp-connector.git
+cd gitlab-mcp-connector
+npm install
+npm run build
 
 # Set environment variables
 export GITLAB_BASE_URL="https://gitlab.example.com"
 export GITLAB_TOKEN="your-personal-access-token"
 
 # Run
-gitlab-mcp-connector
+node dist/server.js
 ```
 
 > **Do not** commit tokens to config files. For production use, see [Multi-Host Mode](#multi-host-mode) below.
@@ -67,8 +72,8 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 {
   "mcpServers": {
     "gitlab": {
-      "command": "npx",
-      "args": ["-y", "gitlab-mcp-connector"],
+      "command": "node",
+      "args": ["/absolute/path/to/gitlab-mcp-connector/dist/server.js"],
       "env": {
         "GITLAB_MCP_CONFIG": "/path/to/config.json"
       }
