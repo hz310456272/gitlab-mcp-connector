@@ -25,6 +25,16 @@ export function errorText(message: string): string {
   return JSON.stringify({ error: message });
 }
 
+function structuredContentFor(data: unknown): Record<string, unknown> {
+  if (Array.isArray(data)) {
+    return { items: data };
+  }
+  if (data !== null && typeof data === "object") {
+    return data as Record<string, unknown>;
+  }
+  return { value: data };
+}
+
 export interface ToolOutput {
   [x: string]: unknown;
   content: Array<{ type: "text"; text: string }>;
@@ -35,7 +45,7 @@ export interface ToolOutput {
 export function toolResult(data: unknown): ToolOutput {
   return {
     content: [{ type: "text", text: jsonText(data) }],
-    structuredContent: data as Record<string, unknown>,
+    structuredContent: structuredContentFor(data),
     isError: false,
   };
 }
