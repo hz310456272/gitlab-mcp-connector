@@ -21,7 +21,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ tests/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "scan": "bash scripts/scan-sensitive.sh"
   },
   "keywords": ["mcp", "gitlab", "code-review", "ci-cd"],
   "repository": {

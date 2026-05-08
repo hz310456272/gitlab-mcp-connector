@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Pack validation
+        run: |
+          output=$(npm pack --dry-run 2>&1)
+          echo "$output"
+          for f in dist/server.js README.md README.en.md LICENSE \
+                   docs/client-compatibility.md docs/client-compatibility.en.md \
+                   examples/claude-code/run-gitlab-mcp.sh; do
+            echo "$output" | grep -q "$f" || { echo "FAIL: $f missing from pack"; exit 1; }
+          done
+
+      - name: Sensitive info scan
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+          npm run scan
