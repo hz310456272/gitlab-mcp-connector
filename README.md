@@ -22,6 +22,8 @@ Verified clients:
 | Codex | Tested | `gitlab_get_project`, `gitlab_list_branches`, and `gitlab_list_merge_requests` verified |
 | Cursor | Tested | `gitlab_list_branches` verified; if a multi-tool Agent run appears stuck, stop it and verify one tool call at a time |
 
+See [docs/client-compatibility.md](docs/client-compatibility.md) for setup and verification notes for Claude Code, Codex, and Cursor.
+
 ## Quick Start
 
 The npm package is not published yet. Install from source for now:
@@ -145,6 +147,8 @@ See the `examples/` directory for configuration snippets:
 - `examples/cursor/` — Cursor MCP config template
 
 All examples use placeholder values. Do not commit real tokens to MCP config files.
+
+Per-client setup, verification prompts, and known notes live in [docs/client-compatibility.md](docs/client-compatibility.md).
 
 Cursor note: Cursor can load and call this stdio MCP server. If Cursor Agent appears stuck during a multi-tool run, stop the run and verify with a single tool call first, for example `gitlab_list_branches`.
 
