@@ -22,8 +22,9 @@ const server = new McpServer({
 
 try {
   loadConfig();
-} catch {
-  // Config errors will surface when tools are called.
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  console.error(`[gitlab-mcp-connector] Config error: ${redact(msg)}`);
 }
 
 server.tool(listProjectsTool.name, listProjectsTool.description, listProjectsTool.schema.shape, listProjectsTool.handler);
