@@ -1,28 +1,30 @@
-# Client Compatibility
+# 客户端兼容性
 
-This document captures the verified status, setup steps, validation tools, and known notes for each MCP client used with `gitlab-mcp-connector`.
+> English version: [client-compatibility.en.md](client-compatibility.en.md)
 
-## Compatibility Matrix
+本文记录 `gitlab-mcp-connector` 在各 MCP 客户端上的真实验证状态、配置方式、验证工具和已知注意事项，方便同事快速接入。
 
-| Client | Status | Verified scope |
-|--------|--------|----------------|
-| Claude Code | Tested | Full read-only workflow against a self-hosted GitLab instance |
-| Codex | Tested | `gitlab_get_project`, `gitlab_list_branches`, `gitlab_list_merge_requests` |
-| Cursor | Tested | MCP server loads with 11 tools enabled; single-tool `gitlab_list_branches` call returns expected branches |
+## 兼容性矩阵
 
-All three clients use the same stdio MCP server. Differences below are about how each client is configured, not about server behavior.
+| 客户端 | 状态 | 已验证范围 |
+|--------|------|------------|
+| Claude Code | 已验证 | 在自托管 GitLab 上跑通完整只读流程 |
+| Codex | 已验证 | `gitlab_get_project`、`gitlab_list_branches`、`gitlab_list_merge_requests` |
+| Cursor | 已验证 | MCP 面板显示 11 tools enabled，单工具 `gitlab_list_branches` 调用返回预期分支 |
 
-## Shared Setup Assumptions
+三个客户端用的都是同一套 stdio MCP server。下面的差异只体现在**怎么配置**，不在 connector 行为上。
 
-- **Transport**: stdio MCP server (`dist/server.js`). No HTTP/SSE.
-- **Token handling**: never write `GITLAB_TOKEN` (or any other secret) into the client's MCP config file. Keep tokens in a separate env file or system secret store.
-- **Wrapper script**: each client launches the connector through a small wrapper (e.g. `run-gitlab-mcp.sh`) that sources the env file and execs `node dist/server.js`. See `examples/claude-code/run-gitlab-mcp.sh` for a reference implementation; the same script works for Codex and Cursor.
-- **Read-only**: all 11 tools are read-only. Verification flows below intentionally use only read operations.
+## 共同前提
+
+- **传输方式**：stdio MCP server（`dist/server.js`），不走 HTTP/SSE。
+- **token 处理**：`GITLAB_TOKEN`（或任何 secret）**不要**写进客户端 MCP 配置文件。token 放在独立 env 文件或系统级 secret 管理器里。
+- **wrapper 脚本**：每个客户端启动 connector 时都通过一个小 wrapper（如 `run-gitlab-mcp.sh`）来 source env 文件再 exec `node dist/server.js`。参考实现见 `examples/claude-code/run-gitlab-mcp.sh`，同一份脚本在 Codex、Cursor 下也能直接复用。
+- **只读**：11 个工具全部只读，下面的验证流程也只用读操作。
 
 ## Claude Code
 
-- **Config file**: `~/.claude.json` (global) or `.claude/settings.json` (per-project).
-- **Recommended entry**: point `command` at the wrapper, not directly at `node`. This keeps the token outside `~/.claude.json`.
+- **配置文件**：全局 `~/.claude.json`，或项目级 `.claude/settings.json`。
+- **推荐方式**：`command` 指向 wrapper 脚本，不要直接指 `node`，这样 token 不会出现在 `~/.claude.json` 里。
 
 ```json
 {
@@ -34,22 +36,22 @@ All three clients use the same stdio MCP server. Differences below are about how
 }
 ```
 
-Restart Claude Code after editing the config so it re-reads `mcpServers`.
+改完配置重启 Claude Code，让它重新读取 `mcpServers`。
 
-### Verification tools
+### 验证工具
 
-Run these in order — each one exercises a different code path (project lookup, repository read, MR listing):
+按顺序跑下面三个，分别覆盖项目查询、仓库读取、MR 列表三条路径：
 
-1. `gitlab_get_project` with `projectIdOrPath: "group/project"`
-2. `gitlab_list_branches` with `projectIdOrPath: "group/project"`
-3. `gitlab_list_merge_requests` with `projectIdOrPath: "group/project"`, `state: "opened"`
+1. `gitlab_get_project`，参数 `projectIdOrPath: "group/project"`
+2. `gitlab_list_branches`，参数 `projectIdOrPath: "group/project"`
+3. `gitlab_list_merge_requests`，参数 `projectIdOrPath: "group/project"`、`state: "opened"`
 
-If all three return non-error results, the connector is healthy on Claude Code.
+三个都返回非 error 即视为 Claude Code 这一端 connector 健康。
 
 ## Codex
 
-- **Config entry**: use `codex mcp add` (preferred) or edit `~/.codex/config.toml` directly.
-- Like Claude Code, point Codex at the wrapper script so secrets stay out of `~/.codex/config.toml`.
+- **配置入口**：推荐用 `codex mcp add`，也可直接编辑 `~/.codex/config.toml`。
+- 和 Claude Code 一样，`command` 指向 wrapper，不把 token 写进 `~/.codex/config.toml`。
 
 ```bash
 codex mcp add gitlab -- /absolute/path/to/run-gitlab-mcp.sh
@@ -57,20 +59,20 @@ codex mcp list
 codex mcp get gitlab
 ```
 
-`codex mcp list` should show `gitlab` registered. `codex mcp get gitlab` should report the configured command.
+`codex mcp list` 应能列出 `gitlab`；`codex mcp get gitlab` 应能看到 wrapper 路径。
 
-### Verification tools
+### 验证工具
 
-Same as Claude Code:
+与 Claude Code 相同：
 
-1. `gitlab_get_project` with `projectIdOrPath: "group/project"`
-2. `gitlab_list_branches` with `projectIdOrPath: "group/project"`
-3. `gitlab_list_merge_requests` with `projectIdOrPath: "group/project"`, `state: "opened"`
+1. `gitlab_get_project`，参数 `projectIdOrPath: "group/project"`
+2. `gitlab_list_branches`，参数 `projectIdOrPath: "group/project"`
+3. `gitlab_list_merge_requests`，参数 `projectIdOrPath: "group/project"`、`state: "opened"`
 
 ## Cursor
 
-- **Config file**: `~/.cursor/mcp.json`.
-- Append the `gitlab` entry under `mcpServers` — **do not overwrite** any existing servers there.
+- **配置文件**：`~/.cursor/mcp.json`。
+- 在 `mcpServers` 下**追加** `gitlab` 条目，**不要覆盖**已有的其他 server。
 
 ```json
 {
@@ -83,45 +85,45 @@ Same as Claude Code:
 }
 ```
 
-After editing, reload the Cursor MCP settings. The MCP panel should show `gitlab` with **11 tools enabled**.
+改完后在 Cursor 里 reload MCP 设置。MCP 面板应能看到 `gitlab`，并显示 **11 tools enabled**。
 
-### Verification: validate one tool first
+### 验证：先单工具
 
-Cursor's MCP panel exposes per-tool invocation. Before asking the Agent to chain multiple tools, call `gitlab_list_branches` once with `projectIdOrPath: "group/project"`. A successful response confirms the connector, token, and stdio link are healthy.
+Cursor 的 MCP 面板支持单工具调用。在让 Agent 一次性串多个工具之前，先单独调一次 `gitlab_list_branches`，参数 `projectIdOrPath: "group/project"`。返回成功就说明 connector、token、stdio 链路都正常。
 
-If a multi-tool Agent run later appears stuck on a tool that worked individually:
+如果之后多工具 Agent run 卡在某个**单调用本来能跑通**的工具上：
 
-1. Stop the Agent run.
-2. Re-run the same tool by itself from the MCP panel — confirm it still returns quickly.
-3. Try the multi-tool flow again with a smaller prompt or fewer tools per turn.
+1. 停止 Agent run。
+2. 在 MCP 面板里再单独调一次同一个工具，确认仍然能快速返回。
+3. 缩小提示词范围，或减少单轮工具数量，再试一次多工具流程。
 
-This pattern is documented because we have observed it in practice; see Known Notes below.
+这套规避方案是基于真实观察记录下来的，详见下面"已知注意事项"。
 
-## Verification Prompts
+## 验证提示词
 
 ### Claude Code / Codex
 
-A short conversational prompt that exercises three tools:
+一段会串起三个工具的对话提示词：
 
-> Using the `gitlab` MCP server, look up the project `group/project`, then list its open branches and any open merge requests. Return a one-line summary of each.
+> 用 `gitlab` MCP server，先查项目 `group/project`，再列出它的 open 分支以及 open 状态的 merge requests，每条返回一行摘要。
 
-### Cursor (single-tool)
+### Cursor（单工具）
 
-When validating Cursor for the first time, prefer a single-tool prompt:
+第一次接 Cursor 时建议用单工具提示词：
 
-> Using the `gitlab` MCP server, call `gitlab_list_branches` for project `group/project` and show the branch names.
+> 用 `gitlab` MCP server 调 `gitlab_list_branches`，项目 `group/project`，把分支名列出来。
 
-Once that succeeds, expand to multi-tool prompts.
+单工具跑通之后，再扩展到多工具提示词。
 
-## Known Notes
+## 已知注意事项
 
-- **Cursor multi-tool hang (single observation, not reproduced as a connector bug)**: in one session, a Cursor Agent run that chained several tool calls appeared to stall on `gitlab_list_branches`. The same wrapper invoked outside Cursor returned in ~326 ms, and the same single-tool call inside Cursor also succeeded. There is no evidence the connector's payload shape caused the hang; the behavior is consistent with a client-side Agent state issue.
-- **No code change is recommended for this**. Changing the connector's output contract for one client risks regressing the Claude Code and Codex flows that are already verified. The mitigation is the workaround above (validate single-tool first, stop and re-run if a multi-tool run stalls).
-- **`structuredContent` shape**: list tools return `{ items: [...] }` in `structuredContent` (an MCP record, not a raw array) and the same payload as a JSON array string in `content[0].text`. All three clients accept this shape.
+- **Cursor 多工具卡住（单次观察，未证实是 connector bug）**：在一次会话里，Cursor Agent 连续串多个工具调用时，UI 卡在 `gitlab_list_branches` 上。同一 wrapper 在 Cursor 外部直接调该工具 ~326ms 成功返回，Cursor 内部单工具调用也成功。没有证据表明 connector 的 payload 形状是肇因，行为更符合客户端 Agent 状态机的问题。
+- **不建议为这一现象修改 connector 的默认输出契约**。为了一个客户端单点观察去改输出格式，会让已经验证通过的 Claude Code / Codex 流程承担回归风险。当前的处理就是上面那套规避方案：先单工具验证、卡住时停掉、再小范围重试。
+- **`structuredContent` 的形状**：list 类工具的 `structuredContent` 已经包成 `{ items: [...] }`（MCP record，非裸数组），同时 `content[0].text` 仍是 JSON 数组字符串。三个客户端都接受这种形状。
 
-## Security Notes
+## 安全注意事项
 
-- The connector **never prints tokens** to stdout/stderr; error messages are redacted before output.
-- **Do not** commit tokens into `~/.claude.json`, `~/.codex/config.toml`, or `~/.cursor/mcp.json`. Keep tokens in `~/.env.gitlab-mcp` (or another file outside any repo) with `chmod 600`, and load them through the wrapper script.
-- The connector performs **no write operations**: no merge, approve, push, retry, cancel, comment, create, or delete. See [security.md](security.md) for the full boundary.
-- When pasting MCP config snippets into a shared channel, double-check the `env` block — it should reference env-var names (e.g. `GITLAB_MCP_CONFIG`), not contain literal token values.
+- connector **永不打印 token** 到 stdout/stderr；错误信息经过 redact 才输出。
+- **不要**把 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json`。token 放在 `~/.env.gitlab-mcp`（或仓库外的其它文件）里，权限收紧到 `chmod 600`，再通过 wrapper 脚本加载。
+- connector **没有任何写操作**：不会 merge、approve、push、retry、cancel、comment、create、delete。完整边界见 [security.md](security.md)。
+- 在共享渠道粘贴 MCP 配置片段前再确认一遍 `env` 块——里面应该只引用环境变量名（如 `GITLAB_MCP_CONFIG`），不该出现 token 明文。

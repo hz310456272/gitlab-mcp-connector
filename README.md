@@ -1,70 +1,71 @@
 # gitlab-mcp-connector
 
-A **read-only** MCP (Model Context Protocol) server for GitLab.
+> English version: [README.en.md](README.en.md)
 
-Enables AI coding agents (Claude Code, Codex, Cursor, etc.) to summarize MRs, review code, check pipelines, and diagnose CI failures — without any write access.
+一个只读的 GitLab MCP 连接器，让 Claude Code、Codex、Cursor 等 AI 编程工具安全读取 GitLab 项目、MR、分支、流水线和 Job 日志。
 
-## Features
+## 功能特性
 
-- **Read-only by design** — no merge, push, approve, or any mutating operations
-- **GitLab.com & self-hosted** — works with any GitLab instance
-- **Multi-host support** — connect to multiple GitLab instances simultaneously
-- **Security-first** — connector never prints tokens; API errors are redacted; raw metadata is normalized. Note: tool output (comments, diffs, job logs) returns user-visible GitLab content and may contain sensitive information committed by users.
-- **MCP standard** — uses stdio transport, compatible with any MCP client
+- **只读设计** — 不做 merge、push、approve、comment、retry、cancel、delete 任何写操作
+- **支持 GitLab.com 和私有化 GitLab** — 任意 GitLab 实例均可
+- **支持多 GitLab host** — 一个 connector 同时连接多个 GitLab 实例
+- **token 不写入客户端配置** — 通过 wrapper 脚本 + env 文件加载，避免在 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 中出现明文 token
+- **输出字段经过 normalize** — 过滤掉 permissions、emails、avatar URL、runner 等非稳定字段，只保留稳定可用的字段；MR 评论、diff、Job 日志等用户内容原样返回
+- **MCP 标准 stdio** — 兼容 Claude Code、Codex、Cursor 等所有 stdio MCP 客户端
 
-## Compatibility
+## 兼容性
 
-Verified clients:
+已真实验证的客户端：
 
-| Client | Status | Notes |
-|--------|--------|-------|
-| Claude Code | Tested | Full read-only workflow verified against a self-hosted GitLab instance |
-| Codex | Tested | `gitlab_get_project`, `gitlab_list_branches`, and `gitlab_list_merge_requests` verified |
-| Cursor | Tested | `gitlab_list_branches` verified; if a multi-tool Agent run appears stuck, stop it and verify one tool call at a time |
+| 客户端 | 状态 | 备注 |
+|--------|------|------|
+| Claude Code | 已验证 | 在自托管 GitLab 上完整跑通只读流程 |
+| Codex | 已验证 | `gitlab_get_project`、`gitlab_list_branches`、`gitlab_list_merge_requests` 验证通过 |
+| Cursor | 已验证 | MCP 面板显示 11 tools enabled，单工具 `gitlab_list_branches` 调用成功；如多工具 Agent run 卡住，建议先停止再单工具验证 |
 
-See [docs/client-compatibility.md](docs/client-compatibility.md) for setup and verification notes for Claude Code, Codex, and Cursor.
+详细配置和验证流程见 [docs/client-compatibility.md](docs/client-compatibility.md)（中文）或 [docs/client-compatibility.en.md](docs/client-compatibility.en.md)（English）。
 
-## Quick Start
+## 快速开始
 
-The npm package is not published yet. Install from source for now:
+npm 包尚未发布，请从 GitHub 源码安装：
 
 ```bash
-# Clone and build
+# 克隆并构建
 git clone https://github.com/hz310456272/gitlab-mcp-connector.git
 cd gitlab-mcp-connector
 npm install
 npm run build
 
-# Set environment variables
+# 设置环境变量
 export GITLAB_BASE_URL="https://gitlab.example.com"
 export GITLAB_TOKEN="your-personal-access-token"
 
-# Run
+# 启动
 node dist/server.js
 ```
 
-> **Do not** commit tokens to config files. For production use, see [Multi-Host Mode](#multi-host-mode) below.
+> **不要**把 token 写进任何会被 commit 的配置文件。生产使用请走下面的多 host 模式。
 
-## Configuration
+## 配置方式
 
-See [docs/configuration.md](docs/configuration.md) for full details.
+完整说明见 [docs/configuration.md](docs/configuration.md)。
 
-### Simple Mode (single GitLab instance)
+### 简单模式（单个 GitLab 实例）
 
 ```bash
-export GITLAB_BASE_URL="https://gitlab.example.com"   # defaults to https://gitlab.com
+export GITLAB_BASE_URL="https://gitlab.example.com"   # 不设置时默认 https://gitlab.com
 export GITLAB_TOKEN="your-personal-access-token"
 ```
 
-> Keep tokens in environment variables or a secret manager. Do not hard-code them in MCP config files you commit to version control.
+token 放在环境变量或密钥管理器里，不要写进 MCP 客户端配置。
 
-### Multi-Host Mode (recommended)
+### 推荐模式：多 host + tokenEnv
 
 ```bash
 export GITLAB_MCP_CONFIG=/path/to/config.json
 ```
 
-Token values are read from separate environment variables — the config file only references the variable names:
+config 文件只引用环境变量名，不存储 token 本身：
 
 ```json
 {
@@ -78,7 +79,7 @@ Token values are read from separate environment variables — the config file on
 }
 ```
 
-In your MCP client config, only set `GITLAB_MCP_CONFIG`:
+MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 ```json
 {
@@ -94,145 +95,52 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 }
 ```
 
-Each MCP tool accepts an optional `host` parameter to select which instance to query.
+每个工具都接受可选的 `host` 参数，用来指定走哪一个 GitLab 实例。
 
-## MCP Tools (11 tools, all read-only)
+> 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-All tools return normalized, stable-field JSON. No raw GitLab responses are exposed. Extra fields like permissions, emails, avatar URLs, or runner details are filtered out. However, user-generated content (MR comment body, diff text, job log output) is returned as-is and may contain sensitive information.
+## MCP 工具（11 个，全部只读）
 
-| Tool | Description | Key Parameters |
-|------|-------------|----------------|
-| `gitlab_list_projects` | List accessible projects | `search`, `membership`, `owned`, `archived`, `visibility`, `page`, `perPage` |
-| `gitlab_get_project` | Get project details | `projectIdOrPath` (ID or `group/sub/project`) |
-| `gitlab_list_merge_requests` | List MRs (project or instance level) | `projectIdOrPath` (omit for instance-level), `state`, `scope`, `authorUsername`, `reviewerUsername`, `targetBranch`, `sourceBranch`, `search`, `page`, `perPage` |
-| `gitlab_get_merge_request` | Get MR details | `projectIdOrPath`, `mergeRequestIid` |
-| `gitlab_get_merge_request_diff` | Get MR diff with size limits | `projectIdOrPath`, `mergeRequestIid`, `maxFiles`, `maxBytes` |
-| `gitlab_get_merge_request_comments` | Get MR comments & discussions | `projectIdOrPath`, `mergeRequestIid` |
-| `gitlab_list_merge_request_pipelines` | List pipelines for an MR | `projectIdOrPath`, `mergeRequestIid` |
-| `gitlab_get_pipeline_jobs` | List jobs in a pipeline | `projectIdOrPath`, `pipelineId`, `includeRetried` |
-| `gitlab_get_job_log` | Get job log with size limits | `projectIdOrPath`, `jobId`, `maxBytes` (default 200KB) |
-| `gitlab_list_branches` | List repository branches | `projectIdOrPath`, `search`, `regex`, `page`, `perPage` |
-| `gitlab_list_tags` | List repository tags | `projectIdOrPath`, `search`, `orderBy`, `sort`, `page`, `perPage` |
+所有工具返回 normalize 后的稳定字段 JSON。permissions、邮箱、avatar URL、runner 等非稳定字段会被过滤；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含有用户提交时夹带的敏感信息，需要按权限边界对待。
 
-All tools accept an optional `host` parameter (multi-host mode).
+| 工具 | 说明 | 主要参数 |
+|------|------|----------|
+| `gitlab_list_projects` | 列出可访问的项目 | `search`、`membership`、`owned`、`archived`、`visibility`、`page`、`perPage` |
+| `gitlab_get_project` | 获取项目详情 | `projectIdOrPath`（ID 或 `group/sub/project`）|
+| `gitlab_list_merge_requests` | 列出 MR（项目级或实例级） | `projectIdOrPath`（不传走实例级）、`state`、`scope`、`authorUsername`、`reviewerUsername`、`targetBranch`、`sourceBranch`、`search`、`page`、`perPage` |
+| `gitlab_get_merge_request` | 获取 MR 详情 | `projectIdOrPath`、`mergeRequestIid` |
+| `gitlab_get_merge_request_diff` | 获取 MR diff，支持大小限制 | `projectIdOrPath`、`mergeRequestIid`、`maxFiles`、`maxBytes` |
+| `gitlab_get_merge_request_comments` | 获取 MR 评论与 discussion | `projectIdOrPath`、`mergeRequestIid` |
+| `gitlab_list_merge_request_pipelines` | 列出 MR 关联的 pipeline | `projectIdOrPath`、`mergeRequestIid` |
+| `gitlab_get_pipeline_jobs` | 列出 pipeline 中的 job | `projectIdOrPath`、`pipelineId`、`includeRetried` |
+| `gitlab_get_job_log` | 获取 job 日志，支持大小限制 | `projectIdOrPath`、`jobId`、`maxBytes`（默认 200KB） |
+| `gitlab_list_branches` | 列出仓库分支 | `projectIdOrPath`、`search`、`regex`、`page`、`perPage` |
+| `gitlab_list_tags` | 列出仓库 tag | `projectIdOrPath`、`search`、`orderBy`、`sort`、`page`、`perPage` |
 
-### Output normalization
+所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-Each tool returns only stable, useful fields:
-- **Projects**: id, name, path_with_namespace, default_branch, visibility, web_url, repo URLs, namespace
-- **Merge requests**: id, iid, title, description, state, branches, author/reviewers (username+name only), timestamps, draft, merge_status, labels
-- **MR diff**: per-file old_path/new_path/new_file/deleted_file/diff, with `truncated` flag
-- **MR comments**: flattened notes with discussion_id, note_id, type (system/user), author, body, position (paths + line numbers), resolvable/resolved
-- **Pipelines**: id, status, ref, sha, timestamps, web_url
-- **Jobs**: id, name, stage, status, web_url, started_at, finished_at, duration
-- **Job log**: job_id, trace, truncated, max_bytes
+## 客户端接入
 
-### Truncation
+仓库 `examples/` 目录提供了三种客户端的最小可用配置模板：
 
-`maxBytes` limits are measured in **UTF-8 bytes** (not JavaScript string length).
+- [`examples/claude-code/`](examples/claude-code/) — Claude Code 的 MCP 配置 + wrapper 脚本
+- [`examples/codex/`](examples/codex/) — Codex 的 MCP 配置模板
+- [`examples/cursor/`](examples/cursor/) — Cursor 的 MCP 配置模板
 
-- `gitlab_get_merge_request_diff` — `maxBytes` limits the total JSON payload. When truncated, `truncated: true` is set and individual diffs are cut. With very small `maxBytes`, the diffs array may be empty.
-- `gitlab_get_job_log` — `maxBytes` limits the total JSON payload (default 200KB). When truncated, `truncated: true` is set. With very small `maxBytes`, the trace may be empty.
+模板里全是占位符，**不要**把真实 token 提交到任何 MCP 客户端配置。逐客户端的安装、验证、排障步骤见 [docs/client-compatibility.md](docs/client-compatibility.md)。
 
-### Security boundary
+## 安全边界
 
-This server **never** performs write operations: no merge, approve, push, retry, cancel, comment, create, or delete. See [docs/security.md](docs/security.md) for full details.
+- **只读**：connector 没有任何写路径，不能 merge MR、不能发评论、不能 retry pipeline、不能改任何 GitLab 资源。
+- **token 不外泄**：服务端永不把 token 打进 stdout/stderr，错误信息经 redact。
+- **用户内容按权限边界对待**：MR 评论、diff、Job 日志属于"调用方在 GitLab 上本来就有权限看到的内容"，原样返回。其中可能包含用户在 commit、评论、CI 输出里夹带的敏感信息——这是 GitLab 内容本身的属性，不是 connector 引入的。
 
-## Integration Examples
+完整安全说明见 [docs/security.md](docs/security.md)。
 
-See the `examples/` directory for configuration snippets:
+## 已知注意事项
 
-- `examples/claude-code/` — Claude Code MCP config + wrapper script
-- `examples/codex/` — Codex MCP config template
-- `examples/cursor/` — Cursor MCP config template
-
-All examples use placeholder values. Do not commit real tokens to MCP config files.
-
-Per-client setup, verification prompts, and known notes live in [docs/client-compatibility.md](docs/client-compatibility.md).
-
-Cursor note: Cursor can load and call this stdio MCP server. If Cursor Agent appears stuck during a multi-tool run, stop the run and verify with a single tool call first, for example `gitlab_list_branches`.
-
-### Claude Code + Self-Hosted GitLab (recommended setup)
-
-Do **not** put your GitLab token directly in `~/.claude.json`. Instead, use a wrapper script that loads the token from a separate env file.
-
-#### Step 1: Create an env file
-
-Save your GitLab URL and token in a dedicated file (not committed to any repo):
-
-```bash
-# ~/.env.gitlab-mcp
-GITLAB_BASE_URL=https://gitlab.example.com
-GITLAB_TOKEN=your-personal-access-token
-```
-
-Restrict permissions: `chmod 600 ~/.env.gitlab-mcp`
-
-#### Step 2: Create a MCP config file
-
-```json
-// ~/.config/gitlab-mcp-connector/config.json
-{
-  "defaultHost": "company",
-  "hosts": {
-    "company": {
-      "baseUrl": "https://gitlab.example.com",
-      "tokenEnv": "GITLAB_TOKEN"
-    }
-  }
-}
-```
-
-Update your env file to add: `GITLAB_MCP_CONFIG=/path/to/config.json`
-
-#### Step 3: Set up the wrapper script
-
-Copy `examples/claude-code/run-gitlab-mcp.sh` to a location on your machine:
-
-```bash
-cp examples/claude-code/run-gitlab-mcp.sh ~/.local/bin/run-gitlab-mcp.sh
-chmod +x ~/.local/bin/run-gitlab-mcp.sh
-```
-
-Edit the script to set `SERVER_PATH` to your installed `dist/server.js` path, or set `GITLAB_MCP_SERVER_PATH` in the env file.
-
-The wrapper sources your env file (loading `GITLAB_BASE_URL`, `GITLAB_TOKEN`, `GITLAB_MCP_CONFIG`, etc.) and then execs the server.
-
-Override paths with environment variables:
-- `GITLAB_MCP_ENV_FILE` — path to env file (default: `~/.env.gitlab-mcp`)
-- `GITLAB_MCP_SERVER_PATH` — path to `dist/server.js`
-
-#### Step 4: Configure Claude Code
-
-Edit `~/.claude.json` (or your project `.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "gitlab": {
-      "command": "/absolute/path/to/run-gitlab-mcp.sh"
-    }
-  }
-}
-```
-
-Restart Claude Code after changing MCP config.
-
-#### Troubleshooting
-
-If tools don't appear in Claude Code:
-
-1. Check `~/.claude.json` has the correct `mcpServers` entry
-2. Verify the wrapper script is executable: `ls -la /path/to/run-gitlab-mcp.sh`
-3. Verify the env file exists and has `GITLAB_TOKEN` set: `source ~/.env.gitlab-mcp && echo $GITLAB_TOKEN | head -c 4`
-4. Test the server manually: `~/.local/bin/run-gitlab-mcp.sh` then type `{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"0.0.1"}}}` + Enter + Ctrl+D
-5. Check that `node /path/to/dist/server.js` can start without errors
-
-This is a **read-only** connector. It cannot merge MRs, post comments, retry pipelines, or modify any GitLab resource.
-
-## Self-Hosted GitLab
-
-See [docs/self-hosted-gitlab.md](docs/self-hosted-gitlab.md) for private deployments, VPN, and self-signed certificates.
+- **Cursor 多工具卡住**：曾在一次会话中观察到 Cursor Agent 连续调用多个工具时 UI 卡在 `gitlab_list_branches` 上，但同一 wrapper 在 Cursor 外部直接调用该工具 ~326ms 成功返回，Cursor 单工具调用也成功。证据更指向 Cursor Agent 的 UI/状态问题，不是 connector payload 问题。**当前不建议为此修改 connector 的输出契约**，避免回归已经验证通过的 Claude Code / Codex 流程。遇到时停掉 Agent，先单工具验证 `gitlab_list_branches`，再尝试小范围多工具调用。
+- **Self-hosted GitLab + 自签证书**：见 [docs/self-hosted-gitlab.md](docs/self-hosted-gitlab.md)，覆盖 VPN、自签证书等场景。
 
 ## License
 
