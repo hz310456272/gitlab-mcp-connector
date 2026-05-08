@@ -27,20 +27,40 @@
 
 ## 快速开始
 
-npm 包尚未发布，请从 GitHub 源码安装：
+### 从 npm 安装（推荐）
 
 ```bash
-# 克隆并构建
+npm install -g gitlab-mcp-connector
+```
+
+### 从 GitHub Release 下载 tarball
+
+```bash
+# 下载最新 tarball（示例 URL，到 GitHub Release 页面复制实际链接）
+curl -L -o gitlab-mcp-connector.tgz https://github.com/hz310456272/gitlab-mcp-connector/releases/latest/download/gitlab-mcp-connector.tgz
+npm install -g gitlab-mcp-connector.tgz
+```
+
+### 从源码构建
+
+```bash
 git clone https://github.com/hz310456272/gitlab-mcp-connector.git
 cd gitlab-mcp-connector
 npm install
 npm run build
+```
 
+### 配置并启动
+
+```bash
 # 设置环境变量
 export GITLAB_BASE_URL="https://gitlab.example.com"
 export GITLAB_TOKEN="your-personal-access-token"
 
-# 启动
+# 启动（npm 全局安装时）
+gitlab-mcp-connector
+
+# 或从源码启动
 node dist/server.js
 ```
 

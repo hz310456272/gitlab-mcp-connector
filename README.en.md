@@ -28,20 +28,40 @@ See [docs/client-compatibility.en.md](docs/client-compatibility.en.md) for setup
 
 ## Quick Start
 
-The npm package is not published yet. Install from source for now:
+### Install from npm (recommended)
 
 ```bash
-# Clone and build
+npm install -g gitlab-mcp-connector
+```
+
+### Install from GitHub Release tarball
+
+```bash
+# Download the latest tarball (example URL — copy the actual link from the GitHub Release page)
+curl -L -o gitlab-mcp-connector.tgz https://github.com/hz310456272/gitlab-mcp-connector/releases/latest/download/gitlab-mcp-connector.tgz
+npm install -g gitlab-mcp-connector.tgz
+```
+
+### Build from source
+
+```bash
 git clone https://github.com/hz310456272/gitlab-mcp-connector.git
 cd gitlab-mcp-connector
 npm install
 npm run build
+```
 
+### Configure and run
+
+```bash
 # Set environment variables
 export GITLAB_BASE_URL="https://gitlab.example.com"
 export GITLAB_TOKEN="your-personal-access-token"
 
-# Run
+# Run (if installed globally via npm)
+gitlab-mcp-connector
+
+# Or run from source
 node dist/server.js
 ```
 
