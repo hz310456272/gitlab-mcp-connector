@@ -12,7 +12,7 @@ describe("MCP smoke test", () => {
 
     const transport = new StdioClientTransport({
       command: "npx",
-      args: ["tsx", "src/server.ts"],
+      args: ["--no-install", "tsx", "src/server.ts"],
       env: { ...process.env, GITLAB_TOKEN: "test-token" } as Record<string, string>,
     });
 

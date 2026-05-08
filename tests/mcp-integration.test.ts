@@ -60,7 +60,7 @@ describe("MCP integration test: tool calls with structuredContent", () => {
 
     const transport = new StdioClientTransport({
       command: "npx",
-      args: ["tsx", "src/server.ts"],
+      args: ["--no-install", "tsx", "src/server.ts"],
       env: {
         ...process.env,
         GITLAB_BASE_URL: `http://127.0.0.1:${mockPort}`,
@@ -101,7 +101,7 @@ describe("MCP integration test: tool calls with structuredContent", () => {
 
     const transport = new StdioClientTransport({
       command: "npx",
-      args: ["tsx", "src/server.ts"],
+      args: ["--no-install", "tsx", "src/server.ts"],
       env: {
         ...process.env,
         GITLAB_BASE_URL: `http://127.0.0.1:${mockPort}`,
