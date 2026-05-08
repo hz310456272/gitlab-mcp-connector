@@ -12,6 +12,16 @@ Enables AI coding agents (Claude Code, Codex, Cursor, etc.) to summarize MRs, re
 - **Security-first** — connector never prints tokens; API errors are redacted; raw metadata is normalized. Note: tool output (comments, diffs, job logs) returns user-visible GitLab content and may contain sensitive information committed by users.
 - **MCP standard** — uses stdio transport, compatible with any MCP client
 
+## Compatibility
+
+Verified clients:
+
+| Client | Status | Notes |
+|--------|--------|-------|
+| Claude Code | Tested | Full read-only workflow verified against a self-hosted GitLab instance |
+| Codex | Tested | `gitlab_get_project`, `gitlab_list_branches`, and `gitlab_list_merge_requests` verified |
+| Cursor | Tested | `gitlab_list_branches` verified; if a multi-tool Agent run appears stuck, stop it and verify one tool call at a time |
+
 ## Quick Start
 
 The npm package is not published yet. Install from source for now:
@@ -132,9 +142,11 @@ See the `examples/` directory for configuration snippets:
 
 - `examples/claude-code/` — Claude Code MCP config + wrapper script
 - `examples/codex/` — Codex MCP config template
-- `examples/cursor/` — Cursor MCP config
+- `examples/cursor/` — Cursor MCP config template
 
 All examples use placeholder values. Do not commit real tokens to MCP config files.
+
+Cursor note: Cursor can load and call this stdio MCP server. If Cursor Agent appears stuck during a multi-tool run, stop the run and verify with a single tool call first, for example `gitlab_list_branches`.
 
 ### Claude Code + Self-Hosted GitLab (recommended setup)
 
