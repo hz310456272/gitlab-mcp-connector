@@ -53,6 +53,8 @@ describe("MCP smoke test", () => {
         "gitlab_get_issue",
         "gitlab_list_labels",
         "gitlab_list_milestones",
+        "gitlab_list_releases",
+        "gitlab_get_release",
       ];
 
       for (const name of expectedTools) {

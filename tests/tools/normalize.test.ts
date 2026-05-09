@@ -10,6 +10,8 @@ import {
   normalizeLabelList,
   normalizeMilestone,
   normalizeMilestoneList,
+  normalizeRelease,
+  normalizeReleaseList,
 } from "../../src/tools/normalize.js";
 
 describe("normalizeTreeNode", () => {
@@ -498,5 +500,119 @@ describe("normalizeMilestoneList", () => {
     expect(result).toHaveLength(2);
     expect(result[0].title).toBe("v1.0");
     expect(result[1].title).toBe("v2.0");
+  });
+});
+
+const fullReleaseResponse = {
+  tag_name: "v1.0.0",
+  name: "Version 1.0.0",
+  description: "This is the first stable release.",
+  created_at: "2025-06-01T10:00:00Z",
+  released_at: "2025-06-01T10:00:00Z",
+  upcoming_release: false,
+  author: {
+    id: 5,
+    username: "dev",
+    name: "Developer",
+    state: "active",
+    avatar_url: "https://example.com/avatar.jpg",
+  },
+  commit: {
+    id: "abc123def456",
+    short_id: "abc123de",
+    title: "Release commit",
+    author_name: "dev",
+    authored_date: "2025-05-30T10:00:00Z",
+  },
+  commit_path: "/group/project/-/commit/abc123",
+  tag_path: "/group/project/-/tags/v1.0.0",
+  milestones: [
+    { id: 1, iid: 1, title: "v1.0", state: "closed", description: "M1", due_date: "2025-06-01" },
+  ],
+  assets: {
+    count: 2,
+    sources: [
+      { format: "zip", url: "https://gitlab.example.com/archive.zip" },
+    ],
+    links: [
+      { id: 10, name: "binary", url: "https://example.com/download", external: true, link_type: "other" },
+    ],
+  },
+  evidences: [{ sha: "abc", filepath: "evidence.json" }],
+  _links: { self: "https://gitlab.example.com/releases/v1.0.0" },
+};
+
+describe("normalizeRelease", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const result = normalizeRelease(fullReleaseResponse);
+    expect(result).toEqual({
+      tag_name: "v1.0.0",
+      name: "Version 1.0.0",
+      description: "This is the first stable release.",
+      description_truncated: false,
+      created_at: "2025-06-01T10:00:00Z",
+      released_at: "2025-06-01T10:00:00Z",
+      author: { username: "dev", name: "Developer" },
+      commit: { short_id: "abc123de", title: "Release commit", authored_date: "2025-05-30T10:00:00Z" },
+      milestones: [{ id: 1, title: "v1.0", state: "closed" }],
+      assets: {
+        count: 2,
+        links: [{ id: 10, name: "binary", url: "https://example.com/download", external: true, link_type: "other" }],
+      },
+    });
+    expect(result).not.toHaveProperty("upcoming_release");
+    expect(result).not.toHaveProperty("_links");
+    expect(result).not.toHaveProperty("evidences");
+    expect(result).not.toHaveProperty("tag_path");
+  });
+
+  it("handles null commit and null assets", () => {
+    const raw = { ...fullReleaseResponse, commit: null, assets: null };
+    const result = normalizeRelease(raw);
+    expect(result.commit).toBeUndefined();
+    expect(result.assets.count).toBe(0);
+    expect(result.assets.links).toEqual([]);
+  });
+
+  it("handles empty milestones", () => {
+    const raw = { ...fullReleaseResponse, milestones: [] };
+    const result = normalizeRelease(raw);
+    expect(result.milestones).toEqual([]);
+  });
+
+  it("truncates description when descriptionMaxChars is set", () => {
+    const raw = { ...fullReleaseResponse, description: "A".repeat(1000) };
+    const result = normalizeRelease(raw, { descriptionMaxChars: 500 });
+    expect((result.description as string).length).toBe(500);
+    expect(result.description_truncated).toBe(true);
+  });
+
+  it("does not set description_truncated when description fits", () => {
+    const raw = { ...fullReleaseResponse, description: "Short" };
+    const result = normalizeRelease(raw, { descriptionMaxChars: 500 });
+    expect(result.description).toBe("Short");
+    expect(result.description_truncated).toBe(false);
+  });
+
+  it("does not truncate when descriptionMaxChars is not set", () => {
+    const raw = { ...fullReleaseResponse, description: "A".repeat(1000) };
+    const result = normalizeRelease(raw);
+    expect((result.description as string).length).toBe(1000);
+    expect(result.description_truncated).toBe(false);
+  });
+});
+
+describe("normalizeReleaseList", () => {
+  it("normalizes each release with description truncation", () => {
+    const raw = [
+      { ...fullReleaseResponse, description: "A".repeat(1000) },
+      { ...fullReleaseResponse, tag_name: "v2.0.0", description: "Short" },
+    ];
+    const result = normalizeReleaseList(raw);
+    expect(result).toHaveLength(2);
+    expect((result[0].description as string).length).toBe(500);
+    expect(result[0].description_truncated).toBe(true);
+    expect(result[1].description).toBe("Short");
+    expect(result[1].description_truncated).toBe(false);
   });
 });

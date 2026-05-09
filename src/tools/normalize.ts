@@ -648,3 +648,65 @@ export function normalizeCompareResult(
   }
   return output;
 }
+
+// --- Releases ---
+
+const RELEASE_DESCRIPTION_MAX_CHARS = 500;
+
+interface GitLabRelease {
+  tag_name?: string;
+  name?: string;
+  description?: string | null;
+  created_at?: string;
+  released_at?: string;
+  author?: { username?: string; name?: string; [key: string]: unknown };
+  commit?: { short_id?: string; title?: string; authored_date?: string; [key: string]: unknown } | null;
+  milestones?: Array<{ id?: number; title?: string; state?: string; [key: string]: unknown }>;
+  assets?: {
+    count?: number;
+    links?: Array<{ id?: number; name?: string; url?: string; external?: boolean; link_type?: string; [key: string]: unknown }>;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+}
+
+export function normalizeRelease(
+  r: GitLabRelease,
+  options?: { descriptionMaxChars?: number },
+) {
+  const truncated = options?.descriptionMaxChars != null
+    && typeof r.description === "string"
+    && r.description.length > options.descriptionMaxChars;
+
+  const description = truncated
+    ? (r.description as string).slice(0, options!.descriptionMaxChars)
+    : (r.description ?? null);
+
+  return {
+    tag_name: r.tag_name,
+    name: r.name ?? null,
+    description,
+    description_truncated: !!truncated,
+    created_at: r.created_at,
+    released_at: r.released_at,
+    author: r.author ? { username: r.author.username, name: r.author.name } : undefined,
+    commit: r.commit ? { short_id: r.commit.short_id, title: r.commit.title, authored_date: r.commit.authored_date } : undefined,
+    milestones: (r.milestones ?? []).map((m) => ({ id: m.id, title: m.title, state: m.state })),
+    assets: {
+      count: r.assets?.count ?? 0,
+      links: (r.assets?.links ?? []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        url: l.url,
+        external: l.external,
+        link_type: l.link_type,
+      })),
+    },
+  };
+}
+
+export function normalizeReleaseList(
+  releases: GitLabRelease[],
+) {
+  return releases.map((r) => normalizeRelease(r, { descriptionMaxChars: RELEASE_DESCRIPTION_MAX_CHARS }));
+}
