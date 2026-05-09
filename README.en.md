@@ -132,7 +132,7 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 
 Each MCP tool accepts an optional `host` parameter to select which instance to query.
 
-## MCP Tools (16 tools, all read-only)
+## MCP Tools (20 tools, all read-only)
 
 All tools return normalized, stable-field JSON. Unstable fields such as permissions, avatar URLs, and runner details are filtered out. Commit tools intentionally keep author_email and committer_email because they are useful for identifying authors, bots, and committers in engineering workflows. User-generated content such as MR comments, diffs, and job logs is returned as-is and may contain sensitive information.
 
@@ -154,10 +154,14 @@ All tools return normalized, stable-field JSON. Unstable fields such as permissi
 | `gitlab_list_merge_request_pipelines` | List pipelines for an MR | `projectIdOrPath`, `mergeRequestIid` |
 | `gitlab_get_pipeline_jobs` | List jobs in a pipeline | `projectIdOrPath`, `pipelineId`, `includeRetried` |
 | `gitlab_get_job_log` | Get job log with size limits | `projectIdOrPath`, `jobId`, `maxBytes` (default 200KB) |
+| `gitlab_list_issues` | List issues (project or instance level) | `projectIdOrPath` (omit for instance-level), `state`, `labels`, `milestone`, `scope`, `authorUsername`, `assigneeUsername`, `search`, `page`, `perPage` |
+| `gitlab_get_issue` | Get issue details with size limits | `projectIdOrPath`, `issueIid`, `maxBytes` (default 200KB) |
+| `gitlab_list_labels` | List project labels | `projectIdOrPath`, `search`, `page`, `perPage` |
+| `gitlab_list_milestones` | List project milestones | `projectIdOrPath`, `state`, `search`, `page`, `perPage` |
 
 All tools accept an optional `host` parameter (multi-host mode).
 
-All 16 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+All 20 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
 
 ### Output normalization
 
@@ -174,6 +178,10 @@ Each tool returns only stable, useful fields:
 - **Pipelines**: id, status, ref, sha, timestamps, web_url
 - **Jobs**: id, name, stage, status, web_url, started_at, finished_at, duration
 - **Job log**: job_id, trace, truncated, max_bytes
+- **Issues (list)**: id, iid, title, description (truncated to 500 chars), state, web_url, author (username+name), assignees (username+name), labels, milestone (id+title+state), type, confidential, timestamps; `description_truncated: true` when cut
+- **Issue detail**: same as list but full description, max_bytes, description_truncated when truncated by maxBytes
+- **Labels**: id, name, color, text_color, description
+- **Milestones**: id, iid, title, description, state, web_url, created_at, updated_at, due_date, start_date, expired
 
 ### Truncation
 
@@ -183,6 +191,8 @@ Each tool returns only stable, useful fields:
 - `gitlab_compare_refs` — `maxBytes` limits the total JSON payload. Commits are preserved; diffs are truncated first. If still over budget, commits are trimmed from the end. Minimum floor is 100B.
 - `gitlab_get_merge_request_diff` — `maxBytes` limits the total JSON payload. When truncated, `truncated: true` is set and individual diffs are cut.
 - `gitlab_get_job_log` — `maxBytes` limits the total JSON payload (default 200KB). When truncated, `truncated: true` is set.
+- `gitlab_list_issues` — descriptions are truncated to 500 characters in list view; `description_truncated: true` is set when cut.
+- `gitlab_get_issue` — `maxBytes` caps the final JSON payload (default 200KB). If the requested value is too small to hold stable metadata, it is raised to the minimum budget needed for a stable response; `max_bytes` reports the effective value.
 
 ### Security boundary
 

@@ -28,7 +28,7 @@ This means:
 | `read.repository` | `gitlab_list_branches`, `gitlab_list_tags`, `gitlab_list_repository_tree`, `gitlab_get_repository_file`, `gitlab_list_commits`, `gitlab_get_commit`, `gitlab_compare_refs` | Yes |
 | `read.mrs` | `gitlab_list_merge_requests`, `gitlab_get_merge_request`, `gitlab_get_merge_request_diff`, `gitlab_get_merge_request_comments`, `gitlab_list_merge_request_pipelines` | Yes |
 | `read.ci` | `gitlab_get_pipeline_jobs`, `gitlab_get_job_log` | Yes |
-| `read.issues` | issues / labels / milestones | No (future) |
+| `read.issues` | `gitlab_list_issues`, `gitlab_get_issue`, `gitlab_list_labels`, `gitlab_list_milestones` | Yes |
 | `write.mrs` | MR comment / create MR | No (future, off by default) |
 | `write.issues` | issue comment / create issue | No (future, off by default) |
 | `write.ci` | retry job / cancel pipeline | No (future, off by default) |

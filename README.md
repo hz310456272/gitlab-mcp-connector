@@ -133,7 +133,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（16 个，全部只读）
+## MCP 工具（20 个，全部只读）
 
 所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
@@ -155,10 +155,46 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 | `gitlab_list_merge_request_pipelines` | 列出 MR 关联的 pipeline | `projectIdOrPath`、`mergeRequestIid` |
 | `gitlab_get_pipeline_jobs` | 列出 pipeline 中的 job | `projectIdOrPath`、`pipelineId`、`includeRetried` |
 | `gitlab_get_job_log` | 获取 job 日志，支持大小限制 | `projectIdOrPath`、`jobId`、`maxBytes`（默认 200KB） |
+| `gitlab_list_issues` | 列出 issue（项目级或实例级） | `projectIdOrPath`（不传走实例级）、`state`、`labels`、`milestone`、`scope`、`authorUsername`、`assigneeUsername`、`search`、`page`、`perPage` |
+| `gitlab_get_issue` | 获取 issue 详情，支持大小限制 | `projectIdOrPath`、`issueIid`、`maxBytes`（默认 200KB） |
+| `gitlab_list_labels` | 列出项目 labels | `projectIdOrPath`、`search`、`page`、`perPage` |
+| `gitlab_list_milestones` | 列出项目 milestones | `projectIdOrPath`、`state`、`search`、`page`、`perPage` |
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 16 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+当前 20 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+
+### 输出规范化
+
+每个工具只返回稳定、有用的字段：
+
+- **Projects**：id、name、path_with_namespace、default_branch、visibility、web_url、repo URL、namespace
+- **Repository tree**：id、name、type（tree/blob）、path、mode
+- **Repository file**：file_name、file_path、size、ref、binary、content、truncated、max_bytes；二进制文件 base64 编码
+- **Commits（列表）**：id、short_id、title、author_name、author_email、authored_date、committer_name、committer_email、committed_date、web_url、parent_ids
+- **Commit 详情**：同列表 + message、stats（additions/deletions/total）
+- **Compare**：commits、diffs、truncated、max_bytes；commit 优先保留，diff 先截断
+- **Merge requests**：id、iid、title、description、state、branches、author/reviewers（仅 username+name）、时间戳、draft、merge_status、labels
+- **MR diff**：每个文件的 old_path/new_path/new_file/deleted_file/diff，带 `truncated` 标记
+- **MR 评论**：扁平化 notes，含 discussion_id、note_id、type（system/user）、author、body、position（路径+行号）、resolvable/resolved
+- **Pipelines**：id、status、ref、sha、时间戳、web_url
+- **Jobs**：id、name、stage、status、web_url、started_at、finished_at、duration
+- **Job log**：job_id、trace、truncated、max_bytes
+- **Issues（列表）**：id、iid、title、description（截断到 500 字符）、state、web_url、author（username+name）、assignees（username+name）、labels、milestone（id+title+state）、type、confidential、时间戳；截断时设 `description_truncated: true`
+- **Issue 详情**：同列表但 description 完整，max_bytes、description_truncated（按 maxBytes 截断时设置）
+- **Labels**：id、name、color、text_color、description
+- **Milestones**：id、iid、title、description、state、web_url、created_at、updated_at、due_date、start_date、expired
+
+### 截断策略
+
+`maxBytes` 按 **UTF-8 字节数**（不是 JavaScript 字符串长度）衡量，限制**最终 JSON payload** 大小。
+
+- `gitlab_get_repository_file` — `maxBytes` 限制最终 JSON payload（默认 200KB，最小 150B）。二进制文件返回 base64；文本文件 UTF-8 解码，超限时截断。
+- `gitlab_compare_refs` — `maxBytes` 限制最终 JSON payload。commit 优先保留，diff 先截断；仍超预算则从末尾裁剪 commit。最小 100B。
+- `gitlab_get_merge_request_diff` — `maxBytes` 限制最终 JSON payload。截断时设 `truncated: true`，逐个 diff 裁剪。
+- `gitlab_get_job_log` — `maxBytes` 限制最终 JSON payload（默认 200KB）。截断时设 `truncated: true`。
+- `gitlab_list_issues` — 列表视图 description 固定截断到 500 字符，截断时设 `description_truncated: true`。
+- `gitlab_get_issue` — `maxBytes` 限制最终 JSON payload（默认 200KB）。如果用户传入值太小，会自动抬高到能容纳稳定元数据的最小预算；`max_bytes` 返回实际生效值。
 
 ## 客户端接入
 

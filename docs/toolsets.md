@@ -28,7 +28,7 @@
 | `read.repository` | `gitlab_list_branches`、`gitlab_list_tags`、`gitlab_list_repository_tree`、`gitlab_get_repository_file`、`gitlab_list_commits`、`gitlab_get_commit`、`gitlab_compare_refs` | 是 |
 | `read.mrs` | `gitlab_list_merge_requests`、`gitlab_get_merge_request`、`gitlab_get_merge_request_diff`、`gitlab_get_merge_request_comments`、`gitlab_list_merge_request_pipelines` | 是 |
 | `read.ci` | `gitlab_get_pipeline_jobs`、`gitlab_get_job_log` | 是 |
-| `read.issues` | issues / labels / milestones | 否（未来） |
+| `read.issues` | `gitlab_list_issues`、`gitlab_get_issue`、`gitlab_list_labels`、`gitlab_list_milestones` | 是 |
 | `write.mrs` | MR comment / create MR | 否（未来，默认关闭） |
 | `write.issues` | issue comment / create issue | 否（未来，默认关闭） |
 | `write.ci` | retry job / cancel pipeline | 否（未来，默认关闭） |
