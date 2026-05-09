@@ -133,7 +133,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（25 个，全部只读）
+## MCP 工具（26 个，全部只读）
 
 所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
@@ -164,10 +164,11 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 | `gitlab_list_milestones` | 列出项目 milestones | `projectIdOrPath`、`state`、`search`、`page`、`perPage` |
 | `gitlab_list_releases` | 列出项目 releases | `projectIdOrPath`、`tagName`、`search`、`orderBy`、`sort`、`page`、`perPage` |
 | `gitlab_get_release` | 获取指定 tag 的 release 详情 | `projectIdOrPath`、`tagName` |
+| `gitlab_search` | 搜索 GitLab 资源（9 个 scope，3 个级别） | `scope`、`search`、`projectIdOrPath`（项目级）、`groupIdOrPath`（组级）、`ref`、`searchType`、`page`、`perPage` |
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 25 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+当前 26 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
 
 ### 输出规范化
 
@@ -193,6 +194,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 - **Milestones**：id、iid、title、description、state、web_url、created_at、updated_at、due_date、start_date、expired
 - **Releases（列表）**：tag_name、name、description（截断到 500 字符）、description_truncated、created_at、released_at、author（username+name）、commit（short_id+title+authored_date）、milestones（id+title+state）、assets（count+links）；`description_truncated` 始终为 boolean
 - **Release 详情**：同列表但 description 完整、description_truncated 始终为 boolean
+- **Search**：输出 `{ level, scope, results }`，每个 scope 有专用 normalizer；issues/MR/milestones 保留 project_id + iid 用于后续工具调用；commits 保留 project_id；blobs/wiki_blobs 保留 project_id + ref + path；notes 保留 project_id + noteable_id + noteable_type；blob data 和 note body 超过 500 字符时截断，带 `data_truncated`/`body_truncated` 标记
 
 ### 截断策略
 
@@ -206,6 +208,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 - `gitlab_get_issue` — `maxBytes` 限制最终 JSON payload（默认 200KB）。如果用户传入值太小，会自动抬高到能容纳稳定元数据的最小预算；`max_bytes` 返回实际生效值。
 - `gitlab_list_releases` — 列表视图 description 固定截断到 500 字符，截断时设 `description_truncated: true`；未截断时为 `false`。
 - `gitlab_get_release` — 不做 maxBytes 限制，返回完整 release 数据。`description_truncated` 始终为 `false`。
+- `gitlab_search` — blob `data` 和 note `body` 固定截断到 500 字符，截断时分别设 `data_truncated: true`/`body_truncated: true`。其他 scope 不截断。
 
 ## 客户端接入
 
