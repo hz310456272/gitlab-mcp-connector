@@ -132,14 +132,21 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 
 Each MCP tool accepts an optional `host` parameter to select which instance to query.
 
-## MCP Tools (11 tools, all read-only)
+## MCP Tools (16 tools, all read-only)
 
-All tools return normalized, stable-field JSON. No raw GitLab responses are exposed. Extra fields like permissions, emails, avatar URLs, or runner details are filtered out. However, user-generated content (MR comment body, diff text, job log output) is returned as-is and may contain sensitive information.
+All tools return normalized, stable-field JSON. Unstable fields such as permissions, avatar URLs, and runner details are filtered out. Commit tools intentionally keep author_email and committer_email because they are useful for identifying authors, bots, and committers in engineering workflows. User-generated content such as MR comments, diffs, and job logs is returned as-is and may contain sensitive information.
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
 | `gitlab_list_projects` | List accessible projects | `search`, `membership`, `owned`, `archived`, `visibility`, `page`, `perPage` |
 | `gitlab_get_project` | Get project details | `projectIdOrPath` (ID or `group/sub/project`) |
+| `gitlab_list_branches` | List repository branches | `projectIdOrPath`, `search`, `regex`, `page`, `perPage` |
+| `gitlab_list_tags` | List repository tags | `projectIdOrPath`, `search`, `orderBy`, `sort`, `page`, `perPage` |
+| `gitlab_list_repository_tree` | List repository tree (files and directories) | `projectIdOrPath`, `path`, `ref`, `recursive`, `page`, `perPage` |
+| `gitlab_get_repository_file` | Get file content from repository | `projectIdOrPath`, `filePath`, `ref`, `maxBytes` (default 200KB) |
+| `gitlab_list_commits` | List repository commits | `projectIdOrPath`, `ref`, `path`, `since`, `until`, `page`, `perPage` |
+| `gitlab_get_commit` | Get commit details (includes message and stats) | `projectIdOrPath`, `sha` |
+| `gitlab_compare_refs` | Compare two branches/tags/commits | `projectIdOrPath`, `from`, `to`, `straight`, `maxFiles`, `maxBytes` |
 | `gitlab_list_merge_requests` | List MRs (project or instance level) | `projectIdOrPath` (omit for instance-level), `state`, `scope`, `authorUsername`, `reviewerUsername`, `targetBranch`, `sourceBranch`, `search`, `page`, `perPage` |
 | `gitlab_get_merge_request` | Get MR details | `projectIdOrPath`, `mergeRequestIid` |
 | `gitlab_get_merge_request_diff` | Get MR diff with size limits | `projectIdOrPath`, `mergeRequestIid`, `maxFiles`, `maxBytes` |
@@ -147,17 +154,20 @@ All tools return normalized, stable-field JSON. No raw GitLab responses are expo
 | `gitlab_list_merge_request_pipelines` | List pipelines for an MR | `projectIdOrPath`, `mergeRequestIid` |
 | `gitlab_get_pipeline_jobs` | List jobs in a pipeline | `projectIdOrPath`, `pipelineId`, `includeRetried` |
 | `gitlab_get_job_log` | Get job log with size limits | `projectIdOrPath`, `jobId`, `maxBytes` (default 200KB) |
-| `gitlab_list_branches` | List repository branches | `projectIdOrPath`, `search`, `regex`, `page`, `perPage` |
-| `gitlab_list_tags` | List repository tags | `projectIdOrPath`, `search`, `orderBy`, `sort`, `page`, `perPage` |
 
 All tools accept an optional `host` parameter (multi-host mode).
 
-All 11 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+All 16 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
 
 ### Output normalization
 
 Each tool returns only stable, useful fields:
 - **Projects**: id, name, path_with_namespace, default_branch, visibility, web_url, repo URLs, namespace
+- **Repository tree**: id, name, type (tree/blob), path, mode
+- **Repository file**: file_name, file_path, size, ref, binary, content, truncated, max_bytes; base64-encoded for binary files
+- **Commits (list)**: id, short_id, title, author_name, author_email, authored_date, committer_name, committer_email, committed_date, web_url, parent_ids
+- **Commit detail**: same as list + message, stats (additions/deletions/total)
+- **Compare**: commits, diffs, truncated, max_bytes; commits preserved, diffs truncated first under budget
 - **Merge requests**: id, iid, title, description, state, branches, author/reviewers (username+name only), timestamps, draft, merge_status, labels
 - **MR diff**: per-file old_path/new_path/new_file/deleted_file/diff, with `truncated` flag
 - **MR comments**: flattened notes with discussion_id, note_id, type (system/user), author, body, position (paths + line numbers), resolvable/resolved
@@ -167,10 +177,12 @@ Each tool returns only stable, useful fields:
 
 ### Truncation
 
-`maxBytes` limits are measured in **UTF-8 bytes** (not JavaScript string length).
+`maxBytes` limits are measured in **UTF-8 bytes** (not JavaScript string length) and cap the **total JSON payload**.
 
-- `gitlab_get_merge_request_diff` — `maxBytes` limits the total JSON payload. When truncated, `truncated: true` is set and individual diffs are cut. With very small `maxBytes`, the diffs array may be empty.
-- `gitlab_get_job_log` — `maxBytes` limits the total JSON payload (default 200KB). When truncated, `truncated: true` is set. With very small `maxBytes`, the trace may be empty.
+- `gitlab_get_repository_file` — `maxBytes` limits the total JSON payload (default 200KB, minimum 150B). Binary files are returned as base64; text files are UTF-8 decoded and truncated if needed.
+- `gitlab_compare_refs` — `maxBytes` limits the total JSON payload. Commits are preserved; diffs are truncated first. If still over budget, commits are trimmed from the end. Minimum floor is 100B.
+- `gitlab_get_merge_request_diff` — `maxBytes` limits the total JSON payload. When truncated, `truncated: true` is set and individual diffs are cut.
+- `gitlab_get_job_log` — `maxBytes` limits the total JSON payload (default 200KB). When truncated, `truncated: true` is set.
 
 ### Security boundary
 

@@ -10,7 +10,7 @@
 - **支持 GitLab.com 和私有化 GitLab** — 任意 GitLab 实例均可
 - **支持多 GitLab host** — 一个 connector 同时连接多个 GitLab 实例
 - **token 不写入客户端配置** — 通过 wrapper 脚本 + env 文件加载，避免在 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 中出现明文 token
-- **输出字段经过 normalize** — 过滤掉 permissions、emails、avatar URL、runner 等非稳定字段，只保留稳定可用的字段；MR 评论、diff、Job 日志等用户内容原样返回
+- **输出字段经过 normalize** — 过滤掉 permissions、avatar URL、runner 等非稳定字段；commit 工具会保留 author_email / committer_email，便于识别作者、bot 或提交者；MR 评论、diff、Job 日志等用户内容原样返回
 - **MCP 标准 stdio** — 兼容 Claude Code、Codex、Cursor 等所有 stdio MCP 客户端
 
 ## 兼容性
@@ -21,7 +21,7 @@
 |--------|------|------|
 | Claude Code | 已验证 | 在自托管 GitLab 上完整跑通只读流程 |
 | Codex | 已验证 | `gitlab_get_project`、`gitlab_list_branches`、`gitlab_list_merge_requests` 验证通过 |
-| Cursor | 已验证 | MCP 面板显示 11 tools enabled，单工具 `gitlab_list_branches` 调用成功；如多工具 Agent run 卡住，建议先停止再单工具验证 |
+| Cursor | 已验证 | MCP 面板显示 16 tools enabled，单工具 `gitlab_list_branches` 调用成功；如多工具 Agent run 卡住，建议先停止再单工具验证 |
 
 详细配置和验证流程见 [docs/client-compatibility.md](docs/client-compatibility.md)（中文）或 [docs/client-compatibility.en.md](docs/client-compatibility.en.md)（English）。
 
@@ -133,14 +133,21 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（11 个，全部只读）
+## MCP 工具（16 个，全部只读）
 
-所有工具返回 normalize 后的稳定字段 JSON。permissions、邮箱、avatar URL、runner 等非稳定字段会被过滤；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含有用户提交时夹带的敏感信息，需要按权限边界对待。
+所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
 | 工具 | 说明 | 主要参数 |
 |------|------|----------|
 | `gitlab_list_projects` | 列出可访问的项目 | `search`、`membership`、`owned`、`archived`、`visibility`、`page`、`perPage` |
 | `gitlab_get_project` | 获取项目详情 | `projectIdOrPath`（ID 或 `group/sub/project`）|
+| `gitlab_list_branches` | 列出仓库分支 | `projectIdOrPath`、`search`、`regex`、`page`、`perPage` |
+| `gitlab_list_tags` | 列出仓库 tag | `projectIdOrPath`、`search`、`orderBy`、`sort`、`page`、`perPage` |
+| `gitlab_list_repository_tree` | 列出仓库目录结构（文件和目录） | `projectIdOrPath`、`path`、`ref`、`recursive`、`page`、`perPage` |
+| `gitlab_get_repository_file` | 获取仓库文件内容 | `projectIdOrPath`、`filePath`、`ref`、`maxBytes`（默认 200KB） |
+| `gitlab_list_commits` | 列出仓库 commit | `projectIdOrPath`、`ref`、`path`、`since`、`until`、`page`、`perPage` |
+| `gitlab_get_commit` | 获取 commit 详情（含 message 和 stats） | `projectIdOrPath`、`sha` |
+| `gitlab_compare_refs` | 比较两个分支/tag/commit 的差异 | `projectIdOrPath`、`from`、`to`、`straight`、`maxFiles`、`maxBytes` |
 | `gitlab_list_merge_requests` | 列出 MR（项目级或实例级） | `projectIdOrPath`（不传走实例级）、`state`、`scope`、`authorUsername`、`reviewerUsername`、`targetBranch`、`sourceBranch`、`search`、`page`、`perPage` |
 | `gitlab_get_merge_request` | 获取 MR 详情 | `projectIdOrPath`、`mergeRequestIid` |
 | `gitlab_get_merge_request_diff` | 获取 MR diff，支持大小限制 | `projectIdOrPath`、`mergeRequestIid`、`maxFiles`、`maxBytes` |
@@ -148,12 +155,10 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 | `gitlab_list_merge_request_pipelines` | 列出 MR 关联的 pipeline | `projectIdOrPath`、`mergeRequestIid` |
 | `gitlab_get_pipeline_jobs` | 列出 pipeline 中的 job | `projectIdOrPath`、`pipelineId`、`includeRetried` |
 | `gitlab_get_job_log` | 获取 job 日志，支持大小限制 | `projectIdOrPath`、`jobId`、`maxBytes`（默认 200KB） |
-| `gitlab_list_branches` | 列出仓库分支 | `projectIdOrPath`、`search`、`regex`、`page`、`perPage` |
-| `gitlab_list_tags` | 列出仓库 tag | `projectIdOrPath`、`search`、`orderBy`、`sort`、`page`、`perPage` |
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 11 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+当前 16 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
 
 ## 客户端接入
 

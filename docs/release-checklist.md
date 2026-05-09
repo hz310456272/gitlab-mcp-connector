@@ -16,8 +16,8 @@
 
 ## 本地验证
 
-- [ ] tarball 本地安装：`npm pack` → 临时目录 `npm install` → bin 可执行 → MCP initialize 返回正确 version → `tools/list` 暴露 11 个 tools
-- [ ] Docker 构建：`docker build` 成功 → `docker run` MCP initialize → `tools/list` 暴露 11 个 tools
+- [ ] tarball 本地安装：`npm pack` → 临时目录 `npm install` → bin 可执行 → MCP initialize 返回正确 version → `tools/list` 暴露 16 个 tools
+- [ ] Docker 构建：`docker build` 成功 → `docker run` MCP initialize → `tools/list` 暴露 16 个 tools
 
 ## 手动检查
 

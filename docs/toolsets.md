@@ -13,7 +13,7 @@
 
 ## 当前版本（v0.1.x / v0.2.0）
 
-**默认行为不变**：当前 11 个只读工具全部暴露，无需任何 toolset 配置。
+**默认行为不变**：当前 16 个只读工具全部暴露，无需任何 toolset 配置。
 
 这意味着：
 - 不需要改 MCP 客户端配置
@@ -25,7 +25,7 @@
 | Toolset | 工具 | 当前可用 |
 |---------|------|----------|
 | `read.projects` | `gitlab_list_projects`、`gitlab_get_project` | 是 |
-| `read.repository` | `gitlab_list_branches`、`gitlab_list_tags` | 是（files/commits 未来加入） |
+| `read.repository` | `gitlab_list_branches`、`gitlab_list_tags`、`gitlab_list_repository_tree`、`gitlab_get_repository_file`、`gitlab_list_commits`、`gitlab_get_commit`、`gitlab_compare_refs` | 是 |
 | `read.mrs` | `gitlab_list_merge_requests`、`gitlab_get_merge_request`、`gitlab_get_merge_request_diff`、`gitlab_get_merge_request_comments`、`gitlab_list_merge_request_pipelines` | 是 |
 | `read.ci` | `gitlab_get_pipeline_jobs`、`gitlab_get_job_log` | 是 |
 | `read.issues` | issues / labels / milestones | 否（未来） |
@@ -39,7 +39,7 @@
 >
 > - 当前版本**不读取** `toolsets` 字段
 > - 当前版本**不读取** `GITLAB_TOOLSETS` 环境变量
-> - 即使配置了这些字段，也不会改变 11 个只读工具全部暴露的行为
+> - 即使配置了这些字段，也不会改变 16 个只读工具全部暴露的行为
 >
 > Tool filtering 将在 v0.4.0 与写能力一起实现。
 
@@ -80,6 +80,6 @@ export GITLAB_TOOLSETS="read.projects,read.mrs"
 ## 实现计划
 
 tool filtering 将在 v0.4.0（写能力）阶段和写工具一起实现。在那之前：
-- 11 个只读工具保持全量暴露
+- 16 个只读工具保持全量暴露
 - 配置格式保持向后兼容（不认识的字段会被忽略）
 - 文档持续更新分组定义，确保实际实现时与设计一致
