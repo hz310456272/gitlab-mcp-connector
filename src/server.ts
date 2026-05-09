@@ -17,7 +17,7 @@ import { getPipelineJobsTool, getJobLogTool } from "./tools/pipelines.js";
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
-  version: "0.1.0",
+  version: "0.2.0",
 });
 
 try {

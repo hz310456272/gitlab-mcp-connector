@@ -27,7 +27,7 @@ describe("MCP smoke test", () => {
       const version = client.getServerVersion();
       expect(version).toBeDefined();
       expect(version?.name).toBe("gitlab-mcp-connector");
-      expect(version?.version).toBe("0.1.0");
+      expect(version?.version).toBe("0.2.0");
 
       const tools = await client.listTools();
       const toolNames = tools.tools.map((t) => t.name);

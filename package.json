@@ -1,6 +1,6 @@
 {
   "name": "gitlab-mcp-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A read-only MCP server for GitLab — summarize MRs, review code, check pipelines, diagnose CI failures.",
   "type": "module",
   "main": "./dist/server.js",
