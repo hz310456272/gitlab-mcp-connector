@@ -194,7 +194,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 - **Milestones**：id、iid、title、description、state、web_url、created_at、updated_at、due_date、start_date、expired
 - **Releases（列表）**：tag_name、name、description（截断到 500 字符）、description_truncated、created_at、released_at、author（username+name）、commit（short_id+title+authored_date）、milestones（id+title+state）、assets（count+links）；`description_truncated` 始终为 boolean
 - **Release 详情**：同列表但 description 完整、description_truncated 始终为 boolean
-- **Search**：输出 `{ level, scope, results }`，每个 scope 有专用 normalizer；issues/MR/milestones 保留 project_id + iid 用于后续工具调用；commits 保留 project_id；blobs/wiki_blobs 保留 project_id + ref + path；notes 保留 project_id + noteable_id + noteable_type；blob data 和 note body 超过 500 字符时截断，带 `data_truncated`/`body_truncated` 标记
+- **Search**：输出 `{ level, scope, results }`，每个 scope 有专用 normalizer；issues/MR/milestones 保留 project_id + iid 用于后续工具调用；commits 保留 project_id；blobs/wiki_blobs 保留 project_id + ref + path；notes 保留 project_id + noteable_iid + noteable_type；blob data 和 note body 超过 500 字符时截断，带 `data_truncated`/`body_truncated` 标记
 
 ### 截断策略
 

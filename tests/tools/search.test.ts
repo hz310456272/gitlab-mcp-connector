@@ -186,6 +186,44 @@ describe("search tool", () => {
       const data = JSON.parse(result.content[0].text);
       expect(data.error).toContain("not valid with projectIdOrPath");
     });
+
+    it("allows ref with project-level blobs and URL-encodes ref value", async () => {
+      const pool = mockAgent.get("https://gitlab.example.com");
+      pool
+        .intercept({
+          path: (p: string) => {
+            expect(p).toContain("ref=feat%2Fagent");
+            expect(p).toContain("scope=blobs");
+            return p.includes("/api/v4/projects/10/search");
+          },
+          method: "GET",
+        })
+        .reply(200, []);
+
+      const result = await search({ scope: "blobs", search: "TODO", projectIdOrPath: "10", ref: "feat/agent" });
+      expect(result.isError).toBe(false);
+    });
+
+    it("returns error when ref is used at instance level", async () => {
+      const result = await search({ scope: "blobs", search: "TODO", ref: "develop" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error).toContain("ref is only supported");
+    });
+
+    it("returns error when ref is used at group level", async () => {
+      const result = await search({ scope: "blobs", search: "TODO", groupIdOrPath: "5", ref: "develop" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error).toContain("ref is only supported");
+    });
+
+    it("returns error when ref is used with unsupported scope", async () => {
+      const result = await search({ scope: "issues", search: "bug", projectIdOrPath: "10", ref: "develop" });
+      expect(result.isError).toBe(true);
+      const data = JSON.parse(result.content[0].text);
+      expect(data.error).toContain("ref is only supported");
+    });
   });
 
   describe("error handling", () => {

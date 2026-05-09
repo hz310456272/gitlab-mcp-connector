@@ -73,6 +73,14 @@ export async function search(params: SearchParams) {
     if (params.projectIdOrPath && params.scope === "projects") {
       return toolError("scope 'projects' is not valid with projectIdOrPath; use gitlab_list_projects or gitlab_get_project instead");
     }
+    if (params.ref) {
+      if (!params.projectIdOrPath) {
+        return toolError("ref is only supported for project-level blobs, commits, or wiki_blobs search");
+      }
+      if (params.scope !== "blobs" && params.scope !== "commits" && params.scope !== "wiki_blobs") {
+        return toolError("ref is only supported for project-level blobs, commits, or wiki_blobs search");
+      }
+    }
 
     const client = getClient(params.host);
     const { host: _, scope, search: query, ref, searchType, page, perPage } = params;

@@ -907,6 +907,7 @@ interface GitLabSearchNote {
   id?: number;
   body?: string;
   noteable_id?: number;
+  noteable_iid?: number;
   noteable_type?: string;
   project_id?: number;
   author?: { username?: string; name?: string };
@@ -926,6 +927,7 @@ export function normalizeSearchNote(n: GitLabSearchNote) {
     body,
     body_truncated,
     noteable_id: n.noteable_id,
+    noteable_iid: n.noteable_iid,
     noteable_type: n.noteable_type,
     project_id: n.project_id,
     author: normalizeUser(n.author),

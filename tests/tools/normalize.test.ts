@@ -887,6 +887,7 @@ describe("normalizeSearchNote", () => {
       type: "DiscussionNote",
       body: longBody,
       noteable_id: 42,
+      noteable_iid: 7,
       noteable_type: "Issue",
       project_id: 10,
       author: { username: "dev", name: "Developer" },
@@ -896,11 +897,12 @@ describe("normalizeSearchNote", () => {
     expect(result.body_truncated).toBe(true);
   });
 
-  it("retains noteable_id, noteable_type, project_id for follow-up", () => {
+  it("retains noteable_id, noteable_iid, noteable_type, project_id for follow-up", () => {
     const result = normalizeSearchNote({
       id: 500,
       body: "Looks good",
       noteable_id: 42,
+      noteable_iid: 7,
       noteable_type: "MergeRequest",
       project_id: 10,
       author: { username: "dev", name: "Developer" },
@@ -913,6 +915,7 @@ describe("normalizeSearchNote", () => {
       noteable_id: 42,
       noteable_type: "MergeRequest",
       project_id: 10,
+      noteable_iid: 7,
       author: { username: "dev", name: "Developer" },
       created_at: "2025-06-01T10:00:00Z",
     });
