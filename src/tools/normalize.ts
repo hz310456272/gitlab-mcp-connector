@@ -710,3 +710,36 @@ export function normalizeReleaseList(
 ) {
   return releases.map((r) => normalizeRelease(r, { descriptionMaxChars: RELEASE_DESCRIPTION_MAX_CHARS }));
 }
+
+// --- Groups ---
+
+interface GitLabGroup {
+  id?: number;
+  name?: string;
+  path?: string;
+  full_path?: string;
+  full_name?: string;
+  description?: string | null;
+  visibility?: string;
+  web_url?: string;
+  parent_id?: number | null;
+  [key: string]: unknown;
+}
+
+export function normalizeGroup(g: GitLabGroup) {
+  return {
+    id: g.id,
+    name: g.name,
+    path: g.path,
+    full_path: g.full_path,
+    full_name: g.full_name,
+    description: g.description ?? null,
+    visibility: g.visibility,
+    web_url: g.web_url,
+    parent_id: g.parent_id ?? null,
+  };
+}
+
+export function normalizeGroupList(groups: GitLabGroup[]) {
+  return groups.map(normalizeGroup);
+}

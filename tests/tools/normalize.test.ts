@@ -12,6 +12,8 @@ import {
   normalizeMilestoneList,
   normalizeRelease,
   normalizeReleaseList,
+  normalizeGroup,
+  normalizeGroupList,
 } from "../../src/tools/normalize.js";
 
 describe("normalizeTreeNode", () => {
@@ -614,5 +616,73 @@ describe("normalizeReleaseList", () => {
     expect(result[0].description_truncated).toBe(true);
     expect(result[1].description).toBe("Short");
     expect(result[1].description_truncated).toBe(false);
+  });
+});
+
+const fullGroupResponse = {
+  id: 5,
+  name: "Backend",
+  path: "backend",
+  full_path: "company/backend",
+  full_name: "Company / Backend",
+  description: "Backend services group",
+  visibility: "private",
+  web_url: "https://gitlab.example.com/groups/company/backend",
+  parent_id: 1,
+  avatar_url: "https://gitlab.example.com/uploads/avatar.png",
+  runners_token: "glrt-xxx",
+  statistics: { storage_size: 1024 },
+  ldap_cn: "backend-team",
+  shared_with_groups: [{ group_id: 10 }],
+  request_access_enabled: true,
+  default_branch_protection: 2,
+};
+
+describe("normalizeGroup", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const result = normalizeGroup(fullGroupResponse);
+    expect(result).toEqual({
+      id: 5,
+      name: "Backend",
+      path: "backend",
+      full_path: "company/backend",
+      full_name: "Company / Backend",
+      description: "Backend services group",
+      visibility: "private",
+      web_url: "https://gitlab.example.com/groups/company/backend",
+      parent_id: 1,
+    });
+    expect(result).not.toHaveProperty("avatar_url");
+    expect(result).not.toHaveProperty("runners_token");
+    expect(result).not.toHaveProperty("statistics");
+    expect(result).not.toHaveProperty("ldap_cn");
+    expect(result).not.toHaveProperty("shared_with_groups");
+    expect(result).not.toHaveProperty("request_access_enabled");
+    expect(result).not.toHaveProperty("default_branch_protection");
+  });
+
+  it("handles null parent_id for top-level group", () => {
+    const raw = { ...fullGroupResponse, parent_id: null };
+    const result = normalizeGroup(raw);
+    expect(result.parent_id).toBeNull();
+  });
+
+  it("handles null description", () => {
+    const raw = { ...fullGroupResponse, description: null };
+    const result = normalizeGroup(raw);
+    expect(result.description).toBeNull();
+  });
+});
+
+describe("normalizeGroupList", () => {
+  it("maps each group", () => {
+    const raw = [
+      { ...fullGroupResponse, id: 1, path: "company", full_path: "company" },
+      { ...fullGroupResponse, id: 5, path: "backend", full_path: "company/backend" },
+    ];
+    const result = normalizeGroupList(raw);
+    expect(result).toHaveLength(2);
+    expect(result[0].path).toBe("company");
+    expect(result[1].path).toBe("backend");
   });
 });
