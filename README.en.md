@@ -152,6 +152,8 @@ All tools return normalized, stable-field JSON. No raw GitLab responses are expo
 
 All tools accept an optional `host` parameter (multi-host mode).
 
+All 11 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+
 ### Output normalization
 
 Each tool returns only stable, useful fields:

@@ -153,6 +153,8 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
+当前 11 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+
 ## 客户端接入
 
 仓库 `examples/` 目录提供了三种客户端的最小可用配置模板：

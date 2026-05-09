@@ -12,6 +12,12 @@ Every item below must pass before tagging. Verification failures block the tag.
 - [ ] `npm run build` — zero errors, `dist/server.js` exists
 - [ ] `npm pack --dry-run` — includes `dist/server.js`, `README.md`, `LICENSE`, `docs/`, `examples/`
 - [ ] `npm run scan` — sensitive info scan returns zero matches
+- [ ] All three CI jobs green: quality-gate (Node 20), quality-gate (Node 22), docker-build
+
+## Local Verification
+
+- [ ] Tarball install: `npm pack` → `npm install` in temp dir → bin executable → MCP initialize returns correct version → `tools/list` exposes 11 tools
+- [ ] Docker build: `docker build` succeeds → `docker run` MCP initialize → `tools/list` exposes 11 tools
 
 ## Manual Checks
 
@@ -19,6 +25,12 @@ Every item below must pass before tagging. Verification failures block the tag.
 - [ ] `git diff --name-only HEAD~1` scope is correct, no unrelated files
 - [ ] README / docs cross-links complete (run for both Chinese and English)
 - [ ] No real tokens, company domains, personal paths, or internal env var names in public files
+
+## Version Rules
+
+- **Do not bump version early.** The `package.json` version is only updated in the final release commit to the target version (e.g. `0.2.0`), immediately followed by tagging.
+- After bumping version, sync: `src/server.ts` McpServer version, `tests/mcp-smoke.test.ts` assertion.
+- Run full verification after the bump, before tagging.
 
 ## Tagging
 
