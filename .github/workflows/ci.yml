@@ -68,4 +68,4 @@ jobs:
           echo "$output" | grep -q '"gitlab-mcp-connector"' || { echo "FAIL: server name not found"; exit 1; }
           tool_count=$(echo "$output" | grep -o '"gitlab_[a-z_]*"' | sort -u | wc -l)
           echo "Tools found: $tool_count"
-          [ "$tool_count" -eq 26 ] || { echo "FAIL: expected 27 tools, got $tool_count"; exit 1; }
+          [ "$tool_count" -eq 27 ] || { echo "FAIL: expected 27 tools, got $tool_count"; exit 1; }
