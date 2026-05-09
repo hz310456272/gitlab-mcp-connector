@@ -132,7 +132,7 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 
 Each MCP tool accepts an optional `host` parameter to select which instance to query.
 
-## MCP Tools (26 tools, all read-only)
+## MCP Tools (27 tools, all read-only)
 
 All tools return normalized, stable-field JSON. Unstable fields such as permissions, avatar URLs, and runner details are filtered out. Commit tools intentionally keep author_email and committer_email because they are useful for identifying authors, bots, and committers in engineering workflows. User-generated content such as MR comments, diffs, and job logs is returned as-is and may contain sensitive information.
 
@@ -164,10 +164,11 @@ All tools return normalized, stable-field JSON. Unstable fields such as permissi
 | `gitlab_list_releases` | List project releases | `projectIdOrPath`, `tagName`, `search`, `orderBy`, `sort`, `page`, `perPage` |
 | `gitlab_get_release` | Get release details by tag name | `projectIdOrPath`, `tagName` |
 | `gitlab_search` | Search GitLab resources (9 scopes, 3 levels) | `scope`, `search`, `projectIdOrPath` (project level), `groupIdOrPath` (group level), `ref`, `searchType`, `page`, `perPage` |
+| `gitlab_get_ci_config` | Read project CI config (raw file + GitLab CI Lint parsed results) | `projectIdOrPath`, `ref`, `filePath` (default `.gitlab-ci.yml`), `maxBytes` (default 200KB) |
 
 All tools accept an optional `host` parameter (multi-host mode).
 
-All 26 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+All 27 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
 
 ### Output normalization
 
@@ -192,7 +193,8 @@ Each tool returns only stable, useful fields:
 - **Milestones**: id, iid, title, description, state, web_url, created_at, updated_at, due_date, start_date, expired
 - **Releases (list)**: tag_name, name, description (truncated to 500 chars), description_truncated, created_at, released_at, author (username+name), commit (short_id+title+authored_date), milestones (id+title+state), assets (count+links); `description_truncated` is always a boolean
 - **Release detail**: same as list but full description, `description_truncated` is always a boolean
-- **Search**: output is `{ level, scope, results }` with scope-specific normalizers; issues/MR/milestones retain project_id + iid for follow-up tool calls; commits retain project_id; blobs/wiki_blobs retain project_id + ref + path; notes retain project_id + noteable_id + noteable_type; blob data and note body are truncated at 500 chars with `data_truncated`/`body_truncated` flags
+- **Search**: output is `{ level, scope, results }` with scope-specific normalizers; issues/MR/milestones retain project_id + iid for follow-up tool calls; commits retain project_id; blobs/wiki_blobs retain project_id + ref + path; notes retain project_id + noteable_iid + noteable_type; blob data and note body are truncated at 500 chars with `data_truncated`/`body_truncated` flags
+- **CI config**: output includes file_path, ref, content (raw file UTF-8), content_encoding, content_truncated, valid, errors, warnings, merged_yaml (include-expanded full YAML), merged_yaml_truncated, includes (type/location/context_project/context_sha; blob/raw URLs filtered), jobs (name/stage/when/allow_failure), truncated, max_bytes. `filePath` only controls which raw file is read; CI Lint GET always validates the project's actual CI config entry point (`.gitlab-ci.yml`), which may differ from a custom `filePath`. When `filePath` is not `.gitlab-ci.yml`, the output includes `lint_source: "project_default_ci_config"` to indicate this. No POST requests, no pipeline execution, no pipeline creation simulation, no remote include downloads
 
 ### Truncation
 
@@ -207,6 +209,7 @@ Each tool returns only stable, useful fields:
 - `gitlab_list_releases` — descriptions are truncated to 500 characters in list view; `description_truncated: true` when cut, `false` otherwise.
 - `gitlab_get_release` — no maxBytes limit; returns the full release data. `description_truncated` is always `false`.
 - `gitlab_search` — blob `data` and note `body` are truncated to 500 characters; `data_truncated: true`/`body_truncated: true` when cut. Other scopes are not truncated.
+- `gitlab_get_ci_config` — `maxBytes` caps the total JSON payload (default 200KB). `merged_yaml` is truncated first, then `content`; stable fields (valid/errors/warnings/includes/jobs) are never truncated. If the requested value is too small to hold stable metadata, it is raised to the minimum budget needed; `max_bytes` reports the effective value.
 
 ### Security boundary
 

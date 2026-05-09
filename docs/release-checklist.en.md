@@ -16,8 +16,8 @@ Every item below must pass before tagging. Verification failures block the tag.
 
 ## Local Verification
 
-- [ ] Tarball install: `npm pack` → `npm install` in temp dir → bin executable → MCP initialize returns correct version → `tools/list` exposes 26 tools
-- [ ] Docker build: `docker build` succeeds → `docker run` MCP initialize → `tools/list` exposes 26 tools
+- [ ] Tarball install: `npm pack` → `npm install` in temp dir → bin executable → MCP initialize returns correct version → `tools/list` exposes 27 tools
+- [ ] Docker build: `docker build` succeeds → `docker run` MCP initialize → `tools/list` exposes 27 tools
 
 ## Manual Checks
 
