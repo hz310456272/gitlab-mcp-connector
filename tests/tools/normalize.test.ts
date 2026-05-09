@@ -1,0 +1,263 @@
+import { describe, it, expect } from "vitest";
+import {
+  normalizeTreeNodeList,
+  normalizeCommit,
+  normalizeCommitList,
+  normalizeCompareResult,
+} from "../../src/tools/normalize.js";
+
+describe("normalizeTreeNode", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const raw = [
+      {
+        id: "abc123def",
+        name: "src",
+        type: "tree",
+        path: "src",
+        mode: "040000",
+      },
+      {
+        id: "def456",
+        name: "README.md",
+        type: "blob",
+        path: "README.md",
+        mode: "100644",
+      },
+    ];
+
+    const result = normalizeTreeNodeList(raw);
+    expect(result).toHaveLength(2);
+
+    expect(result[0]).toEqual({
+      id: "abc123def",
+      name: "src",
+      type: "tree",
+      path: "src",
+      mode: "040000",
+    });
+    expect(result[1]).toEqual({
+      id: "def456",
+      name: "README.md",
+      type: "blob",
+      path: "README.md",
+      mode: "100644",
+    });
+  });
+
+  it("handles missing optional fields gracefully", () => {
+    const raw = [{ name: "file.txt", type: "blob", path: "file.txt" }];
+    const result = normalizeTreeNodeList(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      id: undefined,
+      name: "file.txt",
+      type: "blob",
+      path: "file.txt",
+      mode: undefined,
+    });
+  });
+});
+
+describe("normalizeCommit", () => {
+  it("list view: stable fields including emails, no message/stats", () => {
+    const raw = {
+      id: "abc123def456",
+      short_id: "abc123de",
+      title: "feat: add new feature",
+      author_name: "John",
+      author_email: "john@example.com",
+      authored_date: "2025-01-01T00:00:00Z",
+      committer_name: "John",
+      committer_email: "john@example.com",
+      committed_date: "2025-01-01T00:00:01Z",
+      message: "feat: add new feature\n\nWith details",
+      parent_ids: ["parent1", "parent2"],
+      web_url: "https://gitlab.example.com/commit/abc123",
+      project_id: 42,
+      trailers: {},
+      extended_trailers: {},
+      signed_off_by: "John",
+      status: "running",
+      last_pipeline: { id: 99 },
+    };
+
+    const result = normalizeCommit(raw, false);
+    expect(result).toEqual({
+      id: "abc123def456",
+      short_id: "abc123de",
+      title: "feat: add new feature",
+      author_name: "John",
+      author_email: "john@example.com",
+      authored_date: "2025-01-01T00:00:00Z",
+      committer_name: "John",
+      committer_email: "john@example.com",
+      committed_date: "2025-01-01T00:00:01Z",
+      web_url: "https://gitlab.example.com/commit/abc123",
+      parent_ids: ["parent1", "parent2"],
+    });
+    expect(result).not.toHaveProperty("message");
+    expect(result).not.toHaveProperty("stats");
+    expect(result).not.toHaveProperty("project_id");
+    expect(result).not.toHaveProperty("trailers");
+    expect(result).not.toHaveProperty("extended_trailers");
+    expect(result).not.toHaveProperty("signed_off_by");
+    expect(result).not.toHaveProperty("status");
+    expect(result).not.toHaveProperty("last_pipeline");
+  });
+
+  it("detail view: includes message and stats on top of list fields", () => {
+    const raw = {
+      id: "abc123",
+      short_id: "abc123",
+      title: "fix: bug",
+      message: "fix: bug\n\nDetailed description",
+      author_name: "Jane",
+      author_email: "jane@example.com",
+      authored_date: "2025-01-01T00:00:00Z",
+      committer_name: "Jane",
+      committer_email: "jane@example.com",
+      committed_date: "2025-01-01T00:00:00Z",
+      web_url: "https://gitlab.example.com/commit/abc123",
+      stats: { additions: 5, deletions: 3, total_changes: 8 },
+      trailers: {},
+      project_id: 7,
+    };
+
+    const result = normalizeCommit(raw, true);
+    expect(result.message).toBe("fix: bug\n\nDetailed description");
+    expect(result.stats).toEqual({ additions: 5, deletions: 3, total_changes: 8 });
+    expect(result.author_email).toBe("jane@example.com");
+    expect(result.committer_name).toBe("Jane");
+    expect(result.committer_email).toBe("jane@example.com");
+    expect(result).not.toHaveProperty("project_id");
+    expect(result).not.toHaveProperty("trailers");
+  });
+
+  it("detail view without stats: omits stats field", () => {
+    const raw = {
+      id: "abc",
+      short_id: "abc",
+      title: "t",
+      message: "msg",
+      author_name: "A",
+      authored_date: "2025-01-01T00:00:00Z",
+      committed_date: "2025-01-01T00:00:00Z",
+      web_url: "https://gitlab.example.com/commit/abc",
+    };
+
+    const result = normalizeCommit(raw, true);
+    expect(result.message).toBe("msg");
+    expect(result).not.toHaveProperty("stats");
+  });
+});
+
+describe("normalizeCommitList", () => {
+  it("normalizes each commit without message or stats, keeps emails", () => {
+    const raw = [
+      {
+        id: "aaa",
+        short_id: "aaa",
+        title: "first",
+        author_name: "A",
+        author_email: "a@example.com",
+        authored_date: "2025-01-01T00:00:00Z",
+        committer_name: "A",
+        committer_email: "a@example.com",
+        committed_date: "2025-01-01T00:00:00Z",
+        message: "should not appear",
+        web_url: "https://gitlab.example.com/commit/aaa",
+        stats: { additions: 1, deletions: 0, total_changes: 1 },
+        project_id: 5,
+      },
+    ];
+
+    const result = normalizeCommitList(raw);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("aaa");
+    expect(result[0].title).toBe("first");
+    expect(result[0].author_email).toBe("a@example.com");
+    expect(result[0].committer_name).toBe("A");
+    expect(result[0].committer_email).toBe("a@example.com");
+    expect(result[0]).not.toHaveProperty("message");
+    expect(result[0]).not.toHaveProperty("stats");
+    expect(result[0]).not.toHaveProperty("project_id");
+  });
+});
+
+describe("normalizeCompareResult", () => {
+  it("normalizes commits and diffs, respects maxFiles and maxBytes", () => {
+    const raw = {
+      commits: [
+        {
+          id: "aaa",
+          short_id: "aaa",
+          title: "commit 1",
+          author_name: "A",
+          authored_date: "2025-01-01T00:00:00Z",
+          committed_date: "2025-01-01T00:00:00Z",
+          web_url: "https://gitlab.example.com/commit/aaa",
+        },
+      ],
+      diffs: [
+        {
+          old_path: "a.txt",
+          new_path: "a.txt",
+          new_file: false,
+          deleted_file: false,
+          diff: "@@ -1 +1 @@\n-old\n+new\n",
+        },
+        {
+          old_path: "b.txt",
+          new_path: "b.txt",
+          new_file: true,
+          deleted_file: false,
+          diff: "@@ -0,0 +1 @@\n+content\n",
+        },
+      ],
+    };
+
+    const result = normalizeCompareResult(raw, { maxFiles: 1, maxBytes: 10000 });
+    expect(result.commits).toHaveLength(1);
+    expect(result.commits[0].id).toBe("aaa");
+    expect(result.diffs).toHaveLength(1);
+    expect(result.truncated).toBe(true);
+    expect(result.diffs[0].old_path).toBe("a.txt");
+    expect(result.max_bytes).toBe(10000);
+  });
+
+  it("small maxBytes: drops diffs first, then trims commits if needed, payload never exceeds limit", () => {
+    const raw = {
+      commits: Array.from({ length: 10 }, (_, i) => ({
+        id: `c${i}`,
+        short_id: `c${i}`,
+        title: `commit ${i}`,
+        author_name: "A",
+        authored_date: "2025-01-01T00:00:00Z",
+        committed_date: "2025-01-01T00:00:00Z",
+        web_url: "https://gitlab.example.com/commit/c" + i,
+      })),
+      diffs: [{ old_path: "f.txt", new_path: "f.txt", diff: "x".repeat(500) }],
+    };
+
+    const result = normalizeCompareResult(raw, { maxBytes: 500 });
+    const payloadSize = Buffer.byteLength(JSON.stringify(result), "utf8");
+    expect(payloadSize).toBeLessThanOrEqual(500);
+    expect(result.truncated).toBe(true);
+    // Commits may be trimmed, but diffs are definitely gone
+    expect(result.diffs).toHaveLength(0);
+    expect(result.max_bytes).toBe(500);
+  });
+
+  it("without maxBytes: no max_bytes field, no truncation", () => {
+    const raw = {
+      commits: [{ id: "a", short_id: "a", title: "t", author_name: "A", authored_date: "2025-01-01T00:00:00Z", committed_date: "2025-01-01T00:00:00Z", web_url: "https://gitlab.example.com/commit/a" }],
+      diffs: [{ old_path: "f.txt", new_path: "f.txt", diff: "x" }],
+    };
+
+    const result = normalizeCompareResult(raw);
+    expect(result.truncated).toBe(false);
+    expect(result.commits).toHaveLength(1);
+    expect(result.diffs).toHaveLength(1);
+    expect(result).not.toHaveProperty("max_bytes");
+  });
+});

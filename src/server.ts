@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig } from "./config.js";
 import { redact } from "./redaction.js";
 import { listProjectsTool, getProjectTool } from "./tools/projects.js";
-import { listBranchesTool, listTagsTool } from "./tools/repository.js";
+import { listBranchesTool, listTagsTool, listRepositoryTreeTool, getRepositoryFileTool } from "./tools/repository.js";
 import {
   listMergeRequestsTool,
   getMergeRequestTool,
@@ -14,6 +14,7 @@ import {
   listMergeRequestPipelinesTool,
 } from "./tools/mergeRequests.js";
 import { getPipelineJobsTool, getJobLogTool } from "./tools/pipelines.js";
+import { listCommitsTool, getCommitTool, compareRefsTool } from "./tools/commits.js";
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
@@ -38,6 +39,11 @@ server.tool(getMergeRequestCommentsTool.name, getMergeRequestCommentsTool.descri
 server.tool(listMergeRequestPipelinesTool.name, listMergeRequestPipelinesTool.description, listMergeRequestPipelinesTool.schema.shape, listMergeRequestPipelinesTool.handler);
 server.tool(getPipelineJobsTool.name, getPipelineJobsTool.description, getPipelineJobsTool.schema.shape, getPipelineJobsTool.handler);
 server.tool(getJobLogTool.name, getJobLogTool.description, getJobLogTool.schema.shape, getJobLogTool.handler);
+server.tool(listRepositoryTreeTool.name, listRepositoryTreeTool.description, listRepositoryTreeTool.schema.shape, listRepositoryTreeTool.handler);
+server.tool(getRepositoryFileTool.name, getRepositoryFileTool.description, getRepositoryFileTool.schema.shape, getRepositoryFileTool.handler);
+server.tool(listCommitsTool.name, listCommitsTool.description, listCommitsTool.schema.shape, listCommitsTool.handler);
+server.tool(getCommitTool.name, getCommitTool.description, getCommitTool.schema.shape, getCommitTool.handler);
+server.tool(compareRefsTool.name, compareRefsTool.description, compareRefsTool.schema.shape, compareRefsTool.handler);
 
 async function main() {
   const transport = new StdioServerTransport();

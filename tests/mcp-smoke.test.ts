@@ -44,6 +44,11 @@ describe("MCP smoke test", () => {
         "gitlab_list_merge_request_pipelines",
         "gitlab_get_pipeline_jobs",
         "gitlab_get_job_log",
+        "gitlab_list_repository_tree",
+        "gitlab_get_repository_file",
+        "gitlab_list_commits",
+        "gitlab_get_commit",
+        "gitlab_compare_refs",
       ];
 
       for (const name of expectedTools) {

@@ -361,3 +361,161 @@ export function normalizeJob(j: GitLabJob) {
 export function normalizeJobList(jobs: GitLabJob[]) {
   return jobs.map(normalizeJob);
 }
+
+// --- Repository tree ---
+
+interface GitLabTreeNode {
+  id?: string;
+  name?: string;
+  type?: string;
+  path?: string;
+  mode?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeTreeNodeList(nodes: GitLabTreeNode[]) {
+  return nodes.map((n) => ({
+    id: n.id,
+    name: n.name,
+    type: n.type,
+    path: n.path,
+    mode: n.mode,
+  }));
+}
+
+// --- Commits ---
+
+interface GitLabCommit {
+  id?: string;
+  short_id?: string;
+  title?: string;
+  message?: string;
+  author_name?: string;
+  author_email?: string;
+  authored_date?: string;
+  committer_name?: string;
+  committer_email?: string;
+  committed_date?: string;
+  parent_ids?: string[];
+  web_url?: string;
+  stats?: { additions?: number; deletions?: number; total_changes?: number };
+  [key: string]: unknown;
+}
+
+export function normalizeCommit(c: GitLabCommit, includeDetail: boolean) {
+  const base: Record<string, unknown> = {
+    id: c.id,
+    short_id: c.short_id,
+    title: c.title,
+    author_name: c.author_name,
+    author_email: c.author_email,
+    authored_date: c.authored_date,
+    committer_name: c.committer_name,
+    committer_email: c.committer_email,
+    committed_date: c.committed_date,
+    web_url: c.web_url,
+    parent_ids: c.parent_ids,
+  };
+  if (includeDetail) {
+    base.message = c.message;
+    if (c.stats) {
+      base.stats = c.stats;
+    }
+  }
+  return base;
+}
+
+export function normalizeCommitList(commits: GitLabCommit[]) {
+  return commits.map((c) => normalizeCommit(c, false));
+}
+
+// --- Compare ---
+
+interface GitLabCompareResult {
+  commits?: GitLabCommit[];
+  diffs?: GitLabDiff[];
+  [key: string]: unknown;
+}
+
+export interface CompareOutput {
+  commits: ReturnType<typeof normalizeCommitList>;
+  diffs: ReturnType<typeof normalizeDiff>[];
+  truncated: boolean;
+  max_bytes?: number;
+}
+
+const MIN_COMPARE_MAX_BYTES = 100;
+
+export function normalizeCompareResult(
+  raw: GitLabCompareResult,
+  options?: { maxFiles?: number; maxBytes?: number },
+): CompareOutput {
+  const effectiveMaxBytes = options?.maxBytes != null ? Math.max(options.maxBytes, MIN_COMPARE_MAX_BYTES) : undefined;
+
+  const commits = normalizeCommitList(raw.commits ?? []);
+  let diffs = (raw.diffs ?? []).map(normalizeDiff);
+  let truncated = false;
+
+  if (options?.maxFiles != null && diffs.length > options.maxFiles) {
+    diffs = diffs.slice(0, options.maxFiles);
+    truncated = true;
+  }
+
+  if (effectiveMaxBytes != null) {
+    const mb = effectiveMaxBytes;
+    const result: typeof diffs = [];
+    for (const d of diffs) {
+      const candidate: CompareOutput = { commits, diffs: [...result, d], truncated: false, max_bytes: mb };
+      if (byteLength(JSON.stringify(candidate)) <= mb) {
+        result.push(d);
+      } else if (result.length === 0) {
+        const entryNoDiff = { ...d, diff: "" };
+        if (byteLength(JSON.stringify({ commits, diffs: [entryNoDiff], truncated: true, max_bytes: mb } as CompareOutput)) <= mb) {
+          if (d.diff) {
+            let lo = 0;
+            let hi = d.diff.length;
+            const suffix = "\n... [truncated]";
+            while (lo < hi) {
+              const mid = Math.ceil((lo + hi) / 2);
+              const trial: CompareOutput = { commits, diffs: [{ ...d, diff: d.diff.slice(0, mid) + suffix }], truncated: true, max_bytes: mb };
+              if (byteLength(JSON.stringify(trial)) <= mb) {
+                lo = mid;
+              } else {
+                hi = mid - 1;
+              }
+            }
+            if (lo > 0) {
+              result.push({ ...d, diff: d.diff.slice(0, lo) + suffix });
+            } else {
+              result.push(entryNoDiff);
+            }
+          } else {
+            result.push(entryNoDiff);
+          }
+        }
+        truncated = true;
+        break;
+      } else {
+        truncated = true;
+        break;
+      }
+    }
+
+    diffs = result;
+
+    const payload: CompareOutput = { commits, diffs, truncated: true, max_bytes: mb };
+    if (byteLength(JSON.stringify(payload)) > mb) {
+      const trimmed = [...commits];
+      while (byteLength(JSON.stringify({ commits: trimmed, diffs: [], truncated: true, max_bytes: mb } as CompareOutput)) > mb && trimmed.length > 0) {
+        trimmed.pop();
+      }
+      return { commits: trimmed, diffs: [], truncated: true, max_bytes: mb };
+    }
+  }
+
+  const output: CompareOutput = { commits, diffs, truncated };
+  if (effectiveMaxBytes != null) {
+    output.max_bytes = effectiveMaxBytes;
+  }
+  return output;
+}
