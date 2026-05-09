@@ -58,6 +58,7 @@ describe("MCP smoke test", () => {
         "gitlab_list_groups",
         "gitlab_get_group",
         "gitlab_list_group_projects",
+        "gitlab_search",
       ];
 
       for (const name of expectedTools) {

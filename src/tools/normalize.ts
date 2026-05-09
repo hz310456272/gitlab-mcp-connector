@@ -743,3 +743,241 @@ export function normalizeGroup(g: GitLabGroup) {
 export function normalizeGroupList(groups: GitLabGroup[]) {
   return groups.map(normalizeGroup);
 }
+
+// --- Search result normalizers ---
+
+const SEARCH_DATA_MAX_CHARS = 500;
+
+interface GitLabSearchProject {
+  id?: number;
+  name?: string;
+  path_with_namespace?: string;
+  description?: string | null;
+  default_branch?: string | null;
+  visibility?: string;
+  web_url?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchProject(p: GitLabSearchProject) {
+  return {
+    id: p.id,
+    name: p.name,
+    path_with_namespace: p.path_with_namespace,
+    description: p.description ?? null,
+    default_branch: p.default_branch ?? null,
+    visibility: p.visibility,
+    web_url: p.web_url,
+  };
+}
+
+interface GitLabSearchIssue {
+  id?: number;
+  iid?: number;
+  project_id?: number;
+  title?: string;
+  state?: string;
+  web_url?: string;
+  author?: { username?: string; name?: string };
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchIssue(i: GitLabSearchIssue) {
+  return {
+    id: i.id,
+    iid: i.iid,
+    project_id: i.project_id,
+    title: i.title,
+    state: i.state,
+    web_url: i.web_url,
+    author: normalizeUser(i.author),
+    created_at: i.created_at,
+  };
+}
+
+interface GitLabSearchMergeRequest {
+  id?: number;
+  iid?: number;
+  project_id?: number;
+  title?: string;
+  state?: string;
+  web_url?: string;
+  source_branch?: string;
+  target_branch?: string;
+  author?: { username?: string; name?: string };
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchMergeRequest(mr: GitLabSearchMergeRequest) {
+  return {
+    id: mr.id,
+    iid: mr.iid,
+    project_id: mr.project_id,
+    title: mr.title,
+    state: mr.state,
+    web_url: mr.web_url,
+    source_branch: mr.source_branch,
+    target_branch: mr.target_branch,
+    author: normalizeUser(mr.author),
+    created_at: mr.created_at,
+  };
+}
+
+interface GitLabSearchMilestone {
+  id?: number;
+  iid?: number;
+  project_id?: number;
+  title?: string;
+  state?: string;
+  web_url?: string;
+  due_date?: string | null;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchMilestone(m: GitLabSearchMilestone) {
+  return {
+    id: m.id,
+    iid: m.iid,
+    project_id: m.project_id,
+    title: m.title,
+    state: m.state,
+    web_url: m.web_url,
+    due_date: m.due_date ?? null,
+  };
+}
+
+interface GitLabSearchCommit {
+  id?: string;
+  short_id?: string;
+  title?: string;
+  project_id?: number;
+  author_name?: string;
+  authored_date?: string;
+  web_url?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchCommit(c: GitLabSearchCommit) {
+  return {
+    id: c.id,
+    short_id: c.short_id,
+    title: c.title,
+    project_id: c.project_id,
+    author_name: c.author_name,
+    authored_date: c.authored_date,
+    web_url: c.web_url,
+  };
+}
+
+interface GitLabSearchBlob {
+  blob_id?: string;
+  basename?: string;
+  path?: string;
+  data?: string;
+  filename?: string;
+  startline?: number;
+  project_id?: number;
+  ref?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchBlob(b: GitLabSearchBlob) {
+  let data: string | null = b.data ?? null;
+  let data_truncated = false;
+  if (typeof data === "string" && data.length > SEARCH_DATA_MAX_CHARS) {
+    data = data.slice(0, SEARCH_DATA_MAX_CHARS);
+    data_truncated = true;
+  }
+  return {
+    blob_id: b.blob_id,
+    basename: b.basename,
+    path: b.path,
+    data,
+    data_truncated,
+    filename: b.filename,
+    startline: b.startline,
+    project_id: b.project_id,
+    ref: b.ref,
+  };
+}
+
+interface GitLabSearchNote {
+  id?: number;
+  body?: string;
+  noteable_id?: number;
+  noteable_type?: string;
+  project_id?: number;
+  author?: { username?: string; name?: string };
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchNote(n: GitLabSearchNote) {
+  let body: string | null = n.body ?? null;
+  let body_truncated = false;
+  if (typeof body === "string" && body.length > SEARCH_DATA_MAX_CHARS) {
+    body = body.slice(0, SEARCH_DATA_MAX_CHARS);
+    body_truncated = true;
+  }
+  return {
+    id: n.id,
+    body,
+    body_truncated,
+    noteable_id: n.noteable_id,
+    noteable_type: n.noteable_type,
+    project_id: n.project_id,
+    author: normalizeUser(n.author),
+    created_at: n.created_at,
+  };
+}
+
+interface GitLabSearchWikiBlob {
+  slug?: string;
+  basename?: string;
+  path?: string;
+  data?: string;
+  filename?: string;
+  project_id?: number;
+  ref?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchWikiBlob(w: GitLabSearchWikiBlob) {
+  let data: string | null = w.data ?? null;
+  let data_truncated = false;
+  if (typeof data === "string" && data.length > SEARCH_DATA_MAX_CHARS) {
+    data = data.slice(0, SEARCH_DATA_MAX_CHARS);
+    data_truncated = true;
+  }
+  return {
+    slug: w.slug,
+    basename: w.basename,
+    path: w.path,
+    data,
+    data_truncated,
+    filename: w.filename,
+    project_id: w.project_id,
+    ref: w.ref,
+  };
+}
+
+interface GitLabSearchUser {
+  id?: number;
+  username?: string;
+  name?: string;
+  state?: string;
+  web_url?: string;
+  [key: string]: unknown;
+}
+
+export function normalizeSearchUser(u: GitLabSearchUser) {
+  return {
+    id: u.id,
+    username: u.username,
+    name: u.name,
+    state: u.state,
+    web_url: u.web_url,
+  };
+}

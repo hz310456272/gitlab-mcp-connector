@@ -14,6 +14,15 @@ import {
   normalizeReleaseList,
   normalizeGroup,
   normalizeGroupList,
+  normalizeSearchProject,
+  normalizeSearchIssue,
+  normalizeSearchMergeRequest,
+  normalizeSearchMilestone,
+  normalizeSearchCommit,
+  normalizeSearchBlob,
+  normalizeSearchNote,
+  normalizeSearchWikiBlob,
+  normalizeSearchUser,
 } from "../../src/tools/normalize.js";
 
 describe("normalizeTreeNode", () => {
@@ -684,5 +693,270 @@ describe("normalizeGroupList", () => {
     expect(result).toHaveLength(2);
     expect(result[0].path).toBe("company");
     expect(result[1].path).toBe("backend");
+  });
+});
+
+// --- Search result normalizers ---
+
+describe("normalizeSearchProject", () => {
+  it("retains id, name, path_with_namespace; drops avatar_url", () => {
+    const result = normalizeSearchProject({
+      id: 10,
+      name: "api-service",
+      path_with_namespace: "company/backend/api-service",
+      description: "API service",
+      default_branch: "main",
+      visibility: "private",
+      web_url: "https://gitlab.example.com/company/backend/api-service",
+      avatar_url: "https://gitlab.example.com/uploads/avatar.png",
+      star_count: 5,
+    });
+    expect(result).toEqual({
+      id: 10,
+      name: "api-service",
+      path_with_namespace: "company/backend/api-service",
+      description: "API service",
+      default_branch: "main",
+      visibility: "private",
+      web_url: "https://gitlab.example.com/company/backend/api-service",
+    });
+  });
+});
+
+describe("normalizeSearchIssue", () => {
+  it("retains project_id and iid for follow-up tool calls", () => {
+    const result = normalizeSearchIssue({
+      id: 42,
+      iid: 7,
+      project_id: 10,
+      title: "Fix login bug",
+      description: "Details",
+      state: "opened",
+      web_url: "https://gitlab.example.com/company/project/-/issues/7",
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+      labels: ["bug"],
+      updated_at: "2025-06-02T12:00:00Z",
+    });
+    expect(result).toEqual({
+      id: 42,
+      iid: 7,
+      project_id: 10,
+      title: "Fix login bug",
+      state: "opened",
+      web_url: "https://gitlab.example.com/company/project/-/issues/7",
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+    });
+    expect(result).not.toHaveProperty("description");
+    expect(result).not.toHaveProperty("labels");
+    expect(result).not.toHaveProperty("updated_at");
+  });
+});
+
+describe("normalizeSearchMergeRequest", () => {
+  it("retains project_id and iid for follow-up tool calls", () => {
+    const result = normalizeSearchMergeRequest({
+      id: 100,
+      iid: 5,
+      project_id: 10,
+      title: "Add feature",
+      description: "Details",
+      state: "opened",
+      web_url: "https://gitlab.example.com/company/project/-/merge_requests/5",
+      source_branch: "feature",
+      target_branch: "main",
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+      labels: ["feature"],
+    });
+    expect(result).toEqual({
+      id: 100,
+      iid: 5,
+      project_id: 10,
+      title: "Add feature",
+      state: "opened",
+      web_url: "https://gitlab.example.com/company/project/-/merge_requests/5",
+      source_branch: "feature",
+      target_branch: "main",
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+    });
+    expect(result).not.toHaveProperty("description");
+    expect(result).not.toHaveProperty("labels");
+  });
+});
+
+describe("normalizeSearchMilestone", () => {
+  it("retains project_id and iid", () => {
+    const result = normalizeSearchMilestone({
+      id: 3,
+      iid: 1,
+      project_id: 10,
+      title: "v1.0",
+      description: "First release",
+      state: "active",
+      web_url: "https://gitlab.example.com/company/project/-/milestones/1",
+      due_date: "2025-12-31",
+      start_date: "2025-01-01",
+    });
+    expect(result).toEqual({
+      id: 3,
+      iid: 1,
+      project_id: 10,
+      title: "v1.0",
+      state: "active",
+      web_url: "https://gitlab.example.com/company/project/-/milestones/1",
+      due_date: "2025-12-31",
+    });
+    expect(result).not.toHaveProperty("description");
+    expect(result).not.toHaveProperty("start_date");
+  });
+});
+
+describe("normalizeSearchCommit", () => {
+  it("retains project_id for follow-up tool calls", () => {
+    const result = normalizeSearchCommit({
+      id: "abc123def456",
+      short_id: "abc123de",
+      title: "feat: add search",
+      project_id: 10,
+      author_name: "dev",
+      author_email: "dev@example.com",
+      authored_date: "2025-06-01T10:00:00Z",
+      web_url: "https://gitlab.example.com/company/project/-/commit/abc123",
+      committer_name: "dev",
+      parent_ids: ["parent1"],
+    });
+    expect(result).toEqual({
+      id: "abc123def456",
+      short_id: "abc123de",
+      title: "feat: add search",
+      project_id: 10,
+      author_name: "dev",
+      authored_date: "2025-06-01T10:00:00Z",
+      web_url: "https://gitlab.example.com/company/project/-/commit/abc123",
+    });
+    expect(result).not.toHaveProperty("author_email");
+    expect(result).not.toHaveProperty("committer_name");
+    expect(result).not.toHaveProperty("parent_ids");
+  });
+});
+
+describe("normalizeSearchBlob", () => {
+  it("truncates data over 500 chars with data_truncated=true", () => {
+    const longData = "x".repeat(600);
+    const result = normalizeSearchBlob({
+      blob_id: "sha123",
+      basename: "file.ts",
+      path: "src/file.ts",
+      data: longData,
+      filename: "file.ts",
+      startline: 10,
+      project_id: 10,
+      ref: "main",
+    });
+    expect((result.data as string).length).toBe(500);
+    expect(result.data_truncated).toBe(true);
+    expect(result.project_id).toBe(10);
+    expect(result.ref).toBe("main");
+    expect(result.path).toBe("src/file.ts");
+  });
+
+  it("keeps short data intact with data_truncated=false", () => {
+    const result = normalizeSearchBlob({
+      blob_id: "sha123",
+      basename: "file.ts",
+      path: "src/file.ts",
+      data: "short content",
+      filename: "file.ts",
+      startline: 1,
+      project_id: 10,
+      ref: "main",
+    });
+    expect(result.data).toBe("short content");
+    expect(result.data_truncated).toBe(false);
+  });
+});
+
+describe("normalizeSearchNote", () => {
+  it("truncates body over 500 chars with body_truncated=true", () => {
+    const longBody = "y".repeat(600);
+    const result = normalizeSearchNote({
+      id: 500,
+      type: "DiscussionNote",
+      body: longBody,
+      noteable_id: 42,
+      noteable_type: "Issue",
+      project_id: 10,
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+    });
+    expect((result.body as string).length).toBe(500);
+    expect(result.body_truncated).toBe(true);
+  });
+
+  it("retains noteable_id, noteable_type, project_id for follow-up", () => {
+    const result = normalizeSearchNote({
+      id: 500,
+      body: "Looks good",
+      noteable_id: 42,
+      noteable_type: "MergeRequest",
+      project_id: 10,
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+    });
+    expect(result).toEqual({
+      id: 500,
+      body: "Looks good",
+      body_truncated: false,
+      noteable_id: 42,
+      noteable_type: "MergeRequest",
+      project_id: 10,
+      author: { username: "dev", name: "Developer" },
+      created_at: "2025-06-01T10:00:00Z",
+    });
+  });
+});
+
+describe("normalizeSearchWikiBlob", () => {
+  it("truncates data over 500 chars and retains slug, project_id", () => {
+    const longData = "z".repeat(700);
+    const result = normalizeSearchWikiBlob({
+      slug: "home",
+      basename: "home",
+      path: "home.md",
+      data: longData,
+      filename: "home.md",
+      project_id: 10,
+      ref: "main",
+    });
+    expect((result.data as string).length).toBe(500);
+    expect(result.data_truncated).toBe(true);
+    expect(result.slug).toBe("home");
+    expect(result.project_id).toBe(10);
+  });
+});
+
+describe("normalizeSearchUser", () => {
+  it("retains id, username, name, state, web_url; drops avatar_url", () => {
+    const result = normalizeSearchUser({
+      id: 5,
+      username: "dev",
+      name: "Developer",
+      state: "active",
+      web_url: "https://gitlab.example.com/dev",
+      avatar_url: "https://gitlab.example.com/uploads/avatar.png",
+      email: "dev@example.com",
+    });
+    expect(result).toEqual({
+      id: 5,
+      username: "dev",
+      name: "Developer",
+      state: "active",
+      web_url: "https://gitlab.example.com/dev",
+    });
+    expect(result).not.toHaveProperty("avatar_url");
+    expect(result).not.toHaveProperty("email");
   });
 });
