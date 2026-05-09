@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+.claude
+CLAUDE.md
+.claude/
+*.tgz
+.env*
+tests
+coverage
+scripts
+docs/roadmap*.md

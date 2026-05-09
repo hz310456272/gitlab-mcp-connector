@@ -50,6 +50,20 @@ npm install
 npm run build
 ```
 
+### 使用 Docker
+
+```bash
+docker build -t gitlab-mcp-connector:local .
+docker run -i --rm \
+  -e GITLAB_BASE_URL="https://gitlab.example.com" \
+  -e GITLAB_TOKEN="your-personal-access-token" \
+  gitlab-mcp-connector:local
+```
+
+> 不要把真实 token 提交到任何配置文件；生产使用时建议从环境变量或 secret manager 注入。
+
+详细 Docker 配置见 [docs/docker.md](docs/docker.md)。
+
 ### 配置并启动
 
 ```bash
