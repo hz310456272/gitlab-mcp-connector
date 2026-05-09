@@ -6,7 +6,7 @@ import { formatApiError } from "../errors.js";
 
 const LIST_DESCRIPTION_MAX_CHARS = 500;
 const DEFAULT_ISSUE_MAX_BYTES = 200 * 1024;
-const MIN_ISSUE_MAX_BYTES = 500;
+const MIN_ISSUE_MAX_BYTES = 1024;
 
 function byteLength(s: string): number {
   return Buffer.byteLength(s, "utf8");
@@ -82,13 +82,29 @@ const getIssueSchema = z.object({
   maxBytes: z.number().optional().describe("Max response size in UTF-8 bytes (default 200KB)"),
 });
 
+function resolveEffectiveLimit(
+  basePayload: Record<string, unknown>,
+  requestedLimit: number,
+): number {
+  let limit = requestedLimit;
+  for (let i = 0; i < 5; i++) {
+    const size = byteLength(JSON.stringify({ ...basePayload, max_bytes: limit }));
+    if (size <= limit) return limit;
+    limit = size;
+  }
+  return limit;
+}
+
 function truncateIssuePayload(
   issue: Record<string, unknown>,
-  limit: number,
+  requestedLimit: number,
 ): Record<string, unknown> {
-  const output: Record<string, unknown> = { ...issue, max_bytes: limit };
+  const base = { ...issue, description: "", description_truncated: true };
+  const effectiveLimit = resolveEffectiveLimit(base, requestedLimit);
 
-  if (byteLength(JSON.stringify(output)) <= limit) return output;
+  const output: Record<string, unknown> = { ...issue, max_bytes: effectiveLimit };
+
+  if (byteLength(JSON.stringify(output)) <= effectiveLimit) return output;
 
   const desc = typeof output.description === "string" ? output.description : "";
 
@@ -97,7 +113,7 @@ function truncateIssuePayload(
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
     const candidate = { ...output, description: desc.slice(0, mid), description_truncated: true };
-    if (byteLength(JSON.stringify(candidate)) <= limit) {
+    if (byteLength(JSON.stringify(candidate)) <= effectiveLimit) {
       lo = mid;
     } else {
       hi = mid - 1;
@@ -108,7 +124,7 @@ function truncateIssuePayload(
     return { ...output, description: desc.slice(0, lo), description_truncated: true };
   }
 
-  return { ...output, description: "", description_truncated: true };
+  return { ...base, max_bytes: effectiveLimit };
 }
 
 export async function getIssue(params: z.infer<typeof getIssueSchema>) {

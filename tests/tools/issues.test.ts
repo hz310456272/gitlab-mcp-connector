@@ -204,6 +204,29 @@ describe("issue tools", () => {
     });
   });
 
+  // Issue with metadata close to 1024 bytes — tests max_bytes digit-width convergence
+  const heavyMetadataResponse = {
+    id: 99999,
+    iid: 42,
+    title: "A".repeat(200),
+    description: "",
+    state: "opened",
+    web_url: "https://gitlab.example.com/a-very-long-group/a-very-long-subgroup/a-very-long-project/-/issues/42",
+    author: { username: "longusername", name: "Long Display Name Here" },
+    assignees: [
+      { username: "assignee1", name: "First Assignee" },
+      { username: "assignee2", name: "Second Assignee" },
+    ],
+    labels: ["label-alpha", "label-beta", "label-gamma"],
+    milestone: { id: 10, title: "Sprint With A Very Long Name", state: "active" },
+    type: "incident",
+    confidential: true,
+    created_at: "2025-06-01T10:00:00.000Z",
+    updated_at: "2025-06-02T12:00:00.000Z",
+    closed_at: null,
+    due_date: "2025-12-31",
+  };
+
   const minimalIssueResponse = {
     id: 1,
     iid: 1,
@@ -222,7 +245,7 @@ describe("issue tools", () => {
   };
 
   describe("getIssue", () => {
-    it("returns normalized issue with max_bytes and no truncation for short description", async () => {
+    it("returns normalized issue with max_bytes=204800 and no truncation for short description", async () => {
       mockAgent
         .get("https://gitlab.example.com")
         .intercept({ path: /\/api\/v4\/projects\/123\/issues\/7/, method: "GET" })
@@ -248,31 +271,37 @@ describe("issue tools", () => {
 
       const result = await getIssue({ projectIdOrPath: "123", issueIid: 7 });
       const data = JSON.parse(result.content[0].text);
+      expect(data.max_bytes).toBe(200 * 1024);
       const payloadSize = Buffer.byteLength(JSON.stringify(data), "utf8");
       expect(payloadSize).toBeLessThanOrEqual(200 * 1024);
-      expect(data.max_bytes).toBe(200 * 1024);
       expect(data.description_truncated).toBe(true);
     });
 
-    it("truncates with explicit maxBytes and returns max_bytes", async () => {
+    it("full issue with maxBytes=500: raises limit to fit metadata, payload <= max_bytes", async () => {
       const longDesc = "A".repeat(10000);
       mockAgent
         .get("https://gitlab.example.com")
-        .intercept({ path: /\/api\/v4\/projects\/123\/issues\/1/, method: "GET" })
-        .reply(200, { ...minimalIssueResponse, description: longDesc });
+        .intercept({ path: /\/api\/v4\/projects\/123\/issues\/7/, method: "GET" })
+        .reply(200, { ...fullIssueResponse, description: longDesc });
 
-      const result = await getIssue({ projectIdOrPath: "123", issueIid: 1, maxBytes: 500 });
+      const result = await getIssue({ projectIdOrPath: "123", issueIid: 7, maxBytes: 500 });
       const data = JSON.parse(result.content[0].text);
-      expect(data.max_bytes).toBe(500);
+      expect(data.max_bytes).toBeGreaterThanOrEqual(500);
       const payloadSize = Buffer.byteLength(JSON.stringify(data), "utf8");
-      expect(payloadSize).toBeLessThanOrEqual(500);
+      expect(payloadSize).toBeLessThanOrEqual(data.max_bytes);
       expect(data.description_truncated).toBe(true);
       expect(data).toHaveProperty("iid");
       expect(data).toHaveProperty("title");
       expect(data).toHaveProperty("state");
+      expect(data).toHaveProperty("web_url");
+      expect(data).toHaveProperty("author");
+      expect(data).toHaveProperty("assignees");
+      expect(data).toHaveProperty("labels");
+      expect(data).toHaveProperty("milestone");
+      expect(data).toHaveProperty("confidential");
     });
 
-    it("applies MIN_ISSUE_MAX_BYTES floor when maxBytes is very small", async () => {
+    it("minimal issue with maxBytes=50: raises to MIN_ISSUE_MAX_BYTES floor, stable fields preserved", async () => {
       const longDesc = "A".repeat(10000);
       mockAgent
         .get("https://gitlab.example.com")
@@ -281,14 +310,39 @@ describe("issue tools", () => {
 
       const result = await getIssue({ projectIdOrPath: "123", issueIid: 1, maxBytes: 50 });
       const data = JSON.parse(result.content[0].text);
-      expect(data.max_bytes).toBe(500);
+      expect(data.max_bytes).toBeGreaterThanOrEqual(1024);
       const payloadSize = Buffer.byteLength(JSON.stringify(data), "utf8");
-      expect(payloadSize).toBeLessThanOrEqual(500);
+      expect(payloadSize).toBeLessThanOrEqual(data.max_bytes);
       expect(data.description_truncated).toBe(true);
       expect(data).toHaveProperty("iid");
       expect(data).toHaveProperty("title");
       expect(data).toHaveProperty("state");
       expect(data).toHaveProperty("web_url");
+      expect(data).toHaveProperty("author");
+      expect(data).toHaveProperty("assignees");
+      expect(data).toHaveProperty("labels");
+      expect(data).toHaveProperty("confidential");
+    });
+
+    it("heavy metadata near 1024B: max_bytes converges, payload <= max_bytes", async () => {
+      const longDesc = "A".repeat(10000);
+      mockAgent
+        .get("https://gitlab.example.com")
+        .intercept({ path: /\/api\/v4\/projects\/123\/issues\/42/, method: "GET" })
+        .reply(200, { ...heavyMetadataResponse, description: longDesc });
+
+      const result = await getIssue({ projectIdOrPath: "123", issueIid: 42, maxBytes: 500 });
+      const data = JSON.parse(result.content[0].text);
+      expect(data.max_bytes).toBeGreaterThanOrEqual(500);
+      const payloadSize = Buffer.byteLength(JSON.stringify(data), "utf8");
+      expect(payloadSize).toBeLessThanOrEqual(data.max_bytes);
+      expect(data.description_truncated).toBe(true);
+      expect(data).toHaveProperty("iid");
+      expect(data).toHaveProperty("title");
+      expect(data).toHaveProperty("web_url");
+      expect(data).toHaveProperty("author");
+      expect(data).toHaveProperty("labels");
+      expect(data).toHaveProperty("milestone");
     });
 
     it("returns error on 404", async () => {
