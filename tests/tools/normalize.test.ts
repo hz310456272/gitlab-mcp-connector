@@ -4,6 +4,12 @@ import {
   normalizeCommit,
   normalizeCommitList,
   normalizeCompareResult,
+  normalizeIssue,
+  normalizeIssueList,
+  normalizeLabel,
+  normalizeLabelList,
+  normalizeMilestone,
+  normalizeMilestoneList,
 } from "../../src/tools/normalize.js";
 
 describe("normalizeTreeNode", () => {
@@ -259,5 +265,238 @@ describe("normalizeCompareResult", () => {
     expect(result.commits).toHaveLength(1);
     expect(result.diffs).toHaveLength(1);
     expect(result).not.toHaveProperty("max_bytes");
+  });
+});
+
+const fullIssueResponse = {
+  id: 42,
+  iid: 7,
+  title: "Fix login bug",
+  description: "This is a detailed description of the issue.\nIt has multiple lines.",
+  state: "opened",
+  web_url: "https://gitlab.example.com/group/project/-/issues/7",
+  author: { username: "dev", name: "Developer", id: 5, state: "active", avatar_url: "https://example.com/avatar.jpg" },
+  assignees: [
+    { username: "assignee1", name: "Assignee 1", id: 10, avatar_url: "https://example.com/a1.jpg" },
+  ],
+  labels: ["bug", "urgent"],
+  milestone: {
+    id: 3,
+    iid: 1,
+    title: "v1.0",
+    state: "active",
+    description: "First release",
+    due_date: "2025-12-31",
+    start_date: "2025-01-01",
+    web_url: "https://gitlab.example.com/group/project/-/milestones/1",
+    created_at: "2025-01-01T00:00:00Z",
+    updated_at: "2025-01-01T00:00:00Z",
+    expired: false,
+    group_id: 1,
+    project_id: 2,
+  },
+  type: "issue",
+  confidential: true,
+  created_at: "2025-06-01T10:00:00Z",
+  updated_at: "2025-06-02T12:00:00Z",
+  closed_at: null,
+  due_date: "2025-12-01",
+  project_id: 99,
+  moved_to: null,
+  time_stats: { time_estimate: 3600, total_time_spent: 1800 },
+  weight: 3,
+  health_status: "on_track",
+  user_notes_count: 15,
+  merge_requests_count: 2,
+  task_completion_status: { count: 5, completed_count: 3 },
+  subscribed: true,
+  participant_count: 4,
+  subscribers_count: 2,
+  upvotes: 1,
+  downvotes: 0,
+  _links: { self: "https://gitlab.example.com/api/v4/issues/42" },
+};
+
+describe("normalizeIssue", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const result = normalizeIssue(fullIssueResponse);
+
+    expect(result).toEqual({
+      id: 42,
+      iid: 7,
+      title: "Fix login bug",
+      description: "This is a detailed description of the issue.\nIt has multiple lines.",
+      state: "opened",
+      web_url: "https://gitlab.example.com/group/project/-/issues/7",
+      author: { username: "dev", name: "Developer" },
+      assignees: [{ username: "assignee1", name: "Assignee 1" }],
+      labels: ["bug", "urgent"],
+      milestone: { id: 3, title: "v1.0", state: "active" },
+      type: "issue",
+      confidential: true,
+      created_at: "2025-06-01T10:00:00Z",
+      updated_at: "2025-06-02T12:00:00Z",
+      closed_at: null,
+      due_date: "2025-12-01",
+    });
+
+    expect(result).not.toHaveProperty("project_id");
+    expect(result).not.toHaveProperty("moved_to");
+    expect(result).not.toHaveProperty("time_stats");
+    expect(result).not.toHaveProperty("weight");
+    expect(result).not.toHaveProperty("health_status");
+    expect(result).not.toHaveProperty("user_notes_count");
+    expect(result).not.toHaveProperty("subscribed");
+    expect(result).not.toHaveProperty("_links");
+  });
+
+  it("omits type when not present", () => {
+    const raw = { id: 1, iid: 1, title: "t", state: "opened", description: null, web_url: "u", confidential: false, created_at: "2025-01-01", updated_at: "2025-01-01", closed_at: null, due_date: null, labels: [], assignees: [] };
+    const result = normalizeIssue(raw);
+    expect(result).not.toHaveProperty("type");
+  });
+
+  it("milestone null when absent", () => {
+    const raw = { ...fullIssueResponse, milestone: null };
+    const result = normalizeIssue(raw);
+    expect(result.milestone).toBeNull();
+  });
+
+  it("empty assignees array", () => {
+    const raw = { ...fullIssueResponse, assignees: [] };
+    const result = normalizeIssue(raw);
+    expect(result.assignees).toEqual([]);
+  });
+
+  it("truncates description when descriptionMaxChars is set", () => {
+    const raw = { ...fullIssueResponse, description: "A".repeat(1000) };
+    const result = normalizeIssue(raw, { descriptionMaxChars: 500 });
+    expect((result.description as string).length).toBe(500);
+    expect(result.description_truncated).toBe(true);
+  });
+
+  it("does not set description_truncated when description fits", () => {
+    const raw = { ...fullIssueResponse, description: "Short" };
+    const result = normalizeIssue(raw, { descriptionMaxChars: 500 });
+    expect(result.description).toBe("Short");
+    expect(result).not.toHaveProperty("description_truncated");
+  });
+
+  it("does not truncate when descriptionMaxChars is not set", () => {
+    const raw = { ...fullIssueResponse, description: "A".repeat(1000) };
+    const result = normalizeIssue(raw);
+    expect((result.description as string).length).toBe(1000);
+    expect(result).not.toHaveProperty("description_truncated");
+  });
+});
+
+describe("normalizeIssueList", () => {
+  it("normalizes each issue with description truncation", () => {
+    const raw = [
+      { ...fullIssueResponse, description: "A".repeat(1000) },
+      { ...fullIssueResponse, id: 43, description: "Short" },
+    ];
+    const result = normalizeIssueList(raw, { descriptionMaxChars: 500 });
+    expect(result).toHaveLength(2);
+    expect((result[0].description as string).length).toBe(500);
+    expect(result[0].description_truncated).toBe(true);
+    expect(result[1].description).toBe("Short");
+    expect(result[1]).not.toHaveProperty("description_truncated");
+  });
+});
+
+describe("normalizeLabel", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const raw = {
+      id: 1,
+      name: "bug",
+      color: "#FF0000",
+      text_color: "#FFFFFF",
+      description: "Bug report",
+      open_issues_count: 10,
+      closed_issues_count: 5,
+      open_merge_requests_count: 3,
+      subscribed: false,
+      priority: 1,
+      description_html: "<p>Bug report</p>",
+      is_project_label: true,
+    };
+
+    const result = normalizeLabel(raw);
+    expect(result).toEqual({
+      id: 1,
+      name: "bug",
+      color: "#FF0000",
+      text_color: "#FFFFFF",
+      description: "Bug report",
+    });
+    expect(result).not.toHaveProperty("open_issues_count");
+    expect(result).not.toHaveProperty("subscribed");
+    expect(result).not.toHaveProperty("priority");
+  });
+});
+
+describe("normalizeLabelList", () => {
+  it("maps each label", () => {
+    const raw = [
+      { id: 1, name: "bug", color: "#FF0000", text_color: "#FFFFFF" },
+      { id: 2, name: "feature", color: "#00FF00", text_color: "#000000" },
+    ];
+    const result = normalizeLabelList(raw);
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("bug");
+    expect(result[1].name).toBe("feature");
+  });
+});
+
+describe("normalizeMilestone", () => {
+  it("picks stable fields and strips unstable ones", () => {
+    const raw = {
+      id: 3,
+      iid: 1,
+      title: "v1.0",
+      description: "First release",
+      state: "active",
+      web_url: "https://gitlab.example.com/group/project/-/milestones/1",
+      created_at: "2025-01-01T00:00:00Z",
+      updated_at: "2025-06-01T00:00:00Z",
+      due_date: "2025-12-31",
+      start_date: "2025-01-01",
+      expired: false,
+      group_id: 10,
+      project_id: 20,
+      user_notes_count: 5,
+    };
+
+    const result = normalizeMilestone(raw);
+    expect(result).toEqual({
+      id: 3,
+      iid: 1,
+      title: "v1.0",
+      description: "First release",
+      state: "active",
+      web_url: "https://gitlab.example.com/group/project/-/milestones/1",
+      created_at: "2025-01-01T00:00:00Z",
+      updated_at: "2025-06-01T00:00:00Z",
+      due_date: "2025-12-31",
+      start_date: "2025-01-01",
+      expired: false,
+    });
+    expect(result).not.toHaveProperty("group_id");
+    expect(result).not.toHaveProperty("project_id");
+    expect(result).not.toHaveProperty("user_notes_count");
+  });
+});
+
+describe("normalizeMilestoneList", () => {
+  it("maps each milestone", () => {
+    const raw = [
+      { id: 1, iid: 1, title: "v1.0", state: "closed", expired: true },
+      { id: 2, iid: 2, title: "v2.0", state: "active", expired: false },
+    ];
+    const result = normalizeMilestoneList(raw);
+    expect(result).toHaveLength(2);
+    expect(result[0].title).toBe("v1.0");
+    expect(result[1].title).toBe("v2.0");
   });
 });

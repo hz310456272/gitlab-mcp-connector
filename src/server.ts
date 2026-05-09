@@ -15,6 +15,9 @@ import {
 } from "./tools/mergeRequests.js";
 import { getPipelineJobsTool, getJobLogTool } from "./tools/pipelines.js";
 import { listCommitsTool, getCommitTool, compareRefsTool } from "./tools/commits.js";
+import { listIssuesTool, getIssueTool } from "./tools/issues.js";
+import { listLabelsTool } from "./tools/labels.js";
+import { listMilestonesTool } from "./tools/milestones.js";
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
@@ -44,6 +47,10 @@ server.tool(getRepositoryFileTool.name, getRepositoryFileTool.description, getRe
 server.tool(listCommitsTool.name, listCommitsTool.description, listCommitsTool.schema.shape, listCommitsTool.handler);
 server.tool(getCommitTool.name, getCommitTool.description, getCommitTool.schema.shape, getCommitTool.handler);
 server.tool(compareRefsTool.name, compareRefsTool.description, compareRefsTool.schema.shape, compareRefsTool.handler);
+server.tool(listIssuesTool.name, listIssuesTool.description, listIssuesTool.schema.shape, listIssuesTool.handler);
+server.tool(getIssueTool.name, getIssueTool.description, getIssueTool.schema.shape, getIssueTool.handler);
+server.tool(listLabelsTool.name, listLabelsTool.description, listLabelsTool.schema.shape, listLabelsTool.handler);
+server.tool(listMilestonesTool.name, listMilestonesTool.description, listMilestonesTool.schema.shape, listMilestonesTool.handler);
 
 async function main() {
   const transport = new StdioServerTransport();

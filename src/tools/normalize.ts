@@ -429,6 +429,135 @@ export function normalizeCommitList(commits: GitLabCommit[]) {
   return commits.map((c) => normalizeCommit(c, false));
 }
 
+// --- Issues ---
+
+interface GitLabIssue {
+  id?: number;
+  iid?: number;
+  title?: string;
+  description?: string | null;
+  state?: string;
+  web_url?: string;
+  author?: { username?: string; name?: string; [key: string]: unknown };
+  assignees?: Array<{ username?: string; name?: string; [key: string]: unknown }>;
+  labels?: string[];
+  milestone?: { id?: number; title?: string; state?: string; [key: string]: unknown } | null;
+  type?: string;
+  confidential?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  closed_at?: string | null;
+  due_date?: string | null;
+  [key: string]: unknown;
+}
+
+export function normalizeIssue(
+  i: GitLabIssue,
+  options?: { descriptionMaxChars?: number },
+) {
+  const result: Record<string, unknown> = {
+    id: i.id,
+    iid: i.iid,
+    title: i.title,
+    description: i.description ?? null,
+    state: i.state,
+    web_url: i.web_url,
+    author: normalizeUser(i.author),
+    assignees: (i.assignees ?? []).map((a) => normalizeUser(a)),
+    labels: i.labels ?? [],
+    milestone: i.milestone
+      ? { id: i.milestone.id, title: i.milestone.title, state: i.milestone.state }
+      : null,
+    confidential: i.confidential,
+    created_at: i.created_at,
+    updated_at: i.updated_at,
+    closed_at: i.closed_at ?? null,
+    due_date: i.due_date ?? null,
+  };
+
+  if (i.type) {
+    result.type = i.type;
+  }
+
+  if (options?.descriptionMaxChars != null && typeof result.description === "string") {
+    if (result.description.length > options.descriptionMaxChars) {
+      result.description = result.description.slice(0, options.descriptionMaxChars);
+      result.description_truncated = true;
+    }
+  }
+
+  return result;
+}
+
+export function normalizeIssueList(
+  issues: GitLabIssue[],
+  options?: { descriptionMaxChars?: number },
+) {
+  return issues.map((i) => normalizeIssue(i, options));
+}
+
+// --- Labels ---
+
+interface GitLabLabel {
+  id?: number;
+  name?: string;
+  color?: string;
+  text_color?: string;
+  description?: string | null;
+  [key: string]: unknown;
+}
+
+export function normalizeLabel(l: GitLabLabel) {
+  return {
+    id: l.id,
+    name: l.name,
+    color: l.color,
+    text_color: l.text_color,
+    description: l.description ?? null,
+  };
+}
+
+export function normalizeLabelList(labels: GitLabLabel[]) {
+  return labels.map(normalizeLabel);
+}
+
+// --- Milestones ---
+
+interface GitLabMilestone {
+  id?: number;
+  iid?: number;
+  title?: string;
+  description?: string | null;
+  state?: string;
+  web_url?: string;
+  created_at?: string;
+  updated_at?: string;
+  due_date?: string | null;
+  start_date?: string | null;
+  expired?: boolean;
+  [key: string]: unknown;
+}
+
+export function normalizeMilestone(m: GitLabMilestone) {
+  return {
+    id: m.id,
+    iid: m.iid,
+    title: m.title,
+    description: m.description ?? null,
+    state: m.state,
+    web_url: m.web_url,
+    created_at: m.created_at,
+    updated_at: m.updated_at,
+    due_date: m.due_date ?? null,
+    start_date: m.start_date ?? null,
+    expired: m.expired,
+  };
+}
+
+export function normalizeMilestoneList(milestones: GitLabMilestone[]) {
+  return milestones.map(normalizeMilestone);
+}
+
 // --- Compare ---
 
 interface GitLabCompareResult {
