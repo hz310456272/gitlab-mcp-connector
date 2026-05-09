@@ -13,7 +13,7 @@ This matters for:
 
 ## Current version (v0.1.x / v0.2.0)
 
-**Default behavior is unchanged**: all 22 read-only tools are exposed with no toolset configuration needed.
+**Default behavior is unchanged**: all 25 read-only tools are exposed with no toolset configuration needed.
 
 This means:
 - No changes to MCP client config
@@ -30,6 +30,7 @@ This means:
 | `read.ci` | `gitlab_get_pipeline_jobs`, `gitlab_get_job_log` | Yes |
 | `read.issues` | `gitlab_list_issues`, `gitlab_get_issue`, `gitlab_list_labels`, `gitlab_list_milestones` | Yes |
 | `read.releases` | `gitlab_list_releases`, `gitlab_get_release` | Yes |
+| `read.groups` | `gitlab_list_groups`, `gitlab_get_group`, `gitlab_list_group_projects` | Yes (membership excluded) |
 | `write.mrs` | MR comment / create MR | No (future, off by default) |
 | `write.issues` | issue comment / create issue | No (future, off by default) |
 | `write.ci` | retry job / cancel pipeline | No (future, off by default) |
@@ -40,7 +41,7 @@ This means:
 >
 > - The current version **does not read** the `toolsets` field
 > - The current version **does not read** the `GITLAB_TOOLSETS` environment variable
-> - Configuring these fields will not change the behavior of exposing all 22 read-only tools
+> - Configuring these fields will not change the behavior of exposing all 25 read-only tools
 >
 > Tool filtering will be implemented in v0.4.0 alongside write capabilities.
 
@@ -81,6 +82,6 @@ All of the above is a design draft — tool filtering is not implemented in the 
 ## Implementation plan
 
 Tool filtering will ship in v0.4.0 alongside write tools. Until then:
-- All 22 read-only tools remain fully exposed
+- All 25 read-only tools remain fully exposed
 - Config format stays backward-compatible (unknown fields are ignored)
 - Group definitions in this doc will be updated as tools are added, ensuring implementation matches the design

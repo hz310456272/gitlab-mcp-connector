@@ -132,7 +132,7 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 
 Each MCP tool accepts an optional `host` parameter to select which instance to query.
 
-## MCP Tools (22 tools, all read-only)
+## MCP Tools (25 tools, all read-only)
 
 All tools return normalized, stable-field JSON. Unstable fields such as permissions, avatar URLs, and runner details are filtered out. Commit tools intentionally keep author_email and committer_email because they are useful for identifying authors, bots, and committers in engineering workflows. User-generated content such as MR comments, diffs, and job logs is returned as-is and may contain sensitive information.
 
@@ -140,6 +140,9 @@ All tools return normalized, stable-field JSON. Unstable fields such as permissi
 |------|-------------|----------------|
 | `gitlab_list_projects` | List accessible projects | `search`, `membership`, `owned`, `archived`, `visibility`, `page`, `perPage` |
 | `gitlab_get_project` | Get project details | `projectIdOrPath` (ID or `group/sub/project`) |
+| `gitlab_list_groups` | List accessible groups / subgroups | `search`, `topLevelOnly`, `orderBy`, `sort`, `page`, `perPage` |
+| `gitlab_get_group` | Get group details | `groupIdOrPath` (ID or `group/subgroup`) |
+| `gitlab_list_group_projects` | List projects in a group | `groupIdOrPath`, `search`, `includeSubgroups`, `archived`, `visibility`, `orderBy`, `sort`, `page`, `perPage` |
 | `gitlab_list_branches` | List repository branches | `projectIdOrPath`, `search`, `regex`, `page`, `perPage` |
 | `gitlab_list_tags` | List repository tags | `projectIdOrPath`, `search`, `orderBy`, `sort`, `page`, `perPage` |
 | `gitlab_list_repository_tree` | List repository tree (files and directories) | `projectIdOrPath`, `path`, `ref`, `recursive`, `page`, `perPage` |
@@ -163,12 +166,14 @@ All tools return normalized, stable-field JSON. Unstable fields such as permissi
 
 All tools accept an optional `host` parameter (multi-host mode).
 
-All 22 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+All 25 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
 
 ### Output normalization
 
 Each tool returns only stable, useful fields:
 - **Projects**: id, name, path_with_namespace, default_branch, visibility, web_url, repo URLs, namespace
+- **Groups**: id, name, path, full_path, full_name, description, visibility, web_url, parent_id (null for top-level groups)
+- **Group projects**: reuses project normalizer, same output fields as `gitlab_list_projects`
 - **Repository tree**: id, name, type (tree/blob), path, mode
 - **Repository file**: file_name, file_path, size, ref, binary, content, truncated, max_bytes; base64-encoded for binary files
 - **Commits (list)**: id, short_id, title, author_name, author_email, authored_date, committer_name, committer_email, committed_date, web_url, parent_ids

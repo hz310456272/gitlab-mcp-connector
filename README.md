@@ -133,7 +133,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（22 个，全部只读）
+## MCP 工具（25 个，全部只读）
 
 所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
@@ -141,6 +141,9 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 |------|------|----------|
 | `gitlab_list_projects` | 列出可访问的项目 | `search`、`membership`、`owned`、`archived`、`visibility`、`page`、`perPage` |
 | `gitlab_get_project` | 获取项目详情 | `projectIdOrPath`（ID 或 `group/sub/project`）|
+| `gitlab_list_groups` | 列出可访问 group / subgroup | `search`、`topLevelOnly`、`orderBy`、`sort`、`page`、`perPage` |
+| `gitlab_get_group` | 获取 group 详情 | `groupIdOrPath`（ID 或 `group/subgroup`）|
+| `gitlab_list_group_projects` | 列出 group 下项目 | `groupIdOrPath`、`search`、`includeSubgroups`、`archived`、`visibility`、`orderBy`、`sort`、`page`、`perPage` |
 | `gitlab_list_branches` | 列出仓库分支 | `projectIdOrPath`、`search`、`regex`、`page`、`perPage` |
 | `gitlab_list_tags` | 列出仓库 tag | `projectIdOrPath`、`search`、`orderBy`、`sort`、`page`、`perPage` |
 | `gitlab_list_repository_tree` | 列出仓库目录结构（文件和目录） | `projectIdOrPath`、`path`、`ref`、`recursive`、`page`、`perPage` |
@@ -164,13 +167,15 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 22 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+当前 25 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
 
 ### 输出规范化
 
 每个工具只返回稳定、有用的字段：
 
 - **Projects**：id、name、path_with_namespace、default_branch、visibility、web_url、repo URL、namespace
+- **Groups**：id、name、path、full_path、full_name、description、visibility、web_url、parent_id（null 表示顶层 group）
+- **Group projects**：复用 project normalizer，输出字段与 `gitlab_list_projects` 一致
 - **Repository tree**：id、name、type（tree/blob）、path、mode
 - **Repository file**：file_name、file_path、size、ref、binary、content、truncated、max_bytes；二进制文件 base64 编码
 - **Commits（列表）**：id、short_id、title、author_name、author_email、authored_date、committer_name、committer_email、committed_date、web_url、parent_ids
