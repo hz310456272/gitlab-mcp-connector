@@ -983,3 +983,32 @@ export function normalizeSearchUser(u: GitLabSearchUser) {
     web_url: u.web_url,
   };
 }
+
+interface GitLabCiLintInclude {
+  type?: string;
+  location?: string;
+  blob?: string;
+  raw?: string;
+  context_project?: string;
+  context_sha?: string;
+  extra?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export function normalizeCiLintIncludes(includes: GitLabCiLintInclude[]) {
+  return includes.map((inc) => ({
+    type: inc.type,
+    location: inc.location,
+    context_project: inc.context_project,
+    context_sha: inc.context_sha,
+  }));
+}
+
+export function normalizeCiLintJobs(jobs: Array<Record<string, unknown>>) {
+  return jobs.map((job) => ({
+    name: job.name,
+    stage: job.stage,
+    when: job.when,
+    allow_failure: job.allow_failure,
+  }));
+}

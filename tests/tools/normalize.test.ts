@@ -23,6 +23,8 @@ import {
   normalizeSearchNote,
   normalizeSearchWikiBlob,
   normalizeSearchUser,
+  normalizeCiLintIncludes,
+  normalizeCiLintJobs,
 } from "../../src/tools/normalize.js";
 
 describe("normalizeTreeNode", () => {
@@ -961,5 +963,66 @@ describe("normalizeSearchUser", () => {
     });
     expect(result).not.toHaveProperty("avatar_url");
     expect(result).not.toHaveProperty("email");
+  });
+});
+
+describe("normalizeCiLintIncludes", () => {
+  it("filters blob/raw/extra and retains type/location/context fields", () => {
+    const result = normalizeCiLintIncludes([
+      {
+        type: "local",
+        location: "ci/build.yml",
+        blob: "https://gitlab.example.com/group/project/-/blob/abc/ci/build.yml",
+        raw: "https://gitlab.example.com/group/project/-/raw/abc/ci/build.yml",
+        context_project: "group/project",
+        context_sha: "abc123",
+        extra: { some: "data" },
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        type: "local",
+        location: "ci/build.yml",
+        context_project: "group/project",
+        context_sha: "abc123",
+      },
+    ]);
+  });
+
+  it("handles empty array", () => {
+    expect(normalizeCiLintIncludes([])).toEqual([]);
+  });
+});
+
+describe("normalizeCiLintJobs", () => {
+  it("retains name/stage/when/allow_failure, strips heavy fields", () => {
+    const result = normalizeCiLintJobs([
+      {
+        name: "build",
+        stage: "build",
+        when: "on_success",
+        allow_failure: false,
+        script: ["echo build"],
+        before_script: ["setup"],
+        after_script: ["cleanup"],
+        tag_list: ["docker"],
+        only: { refs: ["main"] },
+        except: null,
+        environment: null,
+        needs: null,
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        name: "build",
+        stage: "build",
+        when: "on_success",
+        allow_failure: false,
+      },
+    ]);
+  });
+
+  it("handles empty array", () => {
+    expect(normalizeCiLintJobs([])).toEqual([]);
   });
 });

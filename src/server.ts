@@ -21,6 +21,7 @@ import { listMilestonesTool } from "./tools/milestones.js";
 import { listReleasesTool, getReleaseTool } from "./tools/releases.js";
 import { listGroupsTool, getGroupTool, listGroupProjectsTool } from "./tools/groups.js";
 import { searchTool } from "./tools/search.js";
+import { ciConfigTool } from "./tools/ciConfig.js";
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
@@ -60,6 +61,7 @@ server.tool(listGroupsTool.name, listGroupsTool.description, listGroupsTool.sche
 server.tool(getGroupTool.name, getGroupTool.description, getGroupTool.schema.shape, getGroupTool.handler);
 server.tool(listGroupProjectsTool.name, listGroupProjectsTool.description, listGroupProjectsTool.schema.shape, listGroupProjectsTool.handler);
 server.tool(searchTool.name, searchTool.description, searchTool.schema.shape, searchTool.handler);
+server.tool(ciConfigTool.name, ciConfigTool.description, ciConfigTool.schema.shape, ciConfigTool.handler);
 
 async function main() {
   const transport = new StdioServerTransport();
