@@ -10,7 +10,7 @@ This document captures the verified status, setup steps, validation tools, and k
 |--------|--------|----------------|
 | Claude Code | Tested | Full read-only workflow against a self-hosted GitLab instance |
 | Codex | Tested | `gitlab_get_project`, `gitlab_list_branches`, `gitlab_list_merge_requests` |
-| Cursor | Tested | MCP server loads with 20 tools enabled; single-tool `gitlab_list_branches` call returns expected branches |
+| Cursor | Tested | MCP server loads with 22 tools enabled; single-tool `gitlab_list_branches` call returns expected branches |
 
 All three clients use the same stdio MCP server. Differences below are about how each client is configured, not about server behavior.
 
@@ -19,7 +19,7 @@ All three clients use the same stdio MCP server. Differences below are about how
 - **Transport**: stdio MCP server (`dist/server.js`). No HTTP/SSE.
 - **Token handling**: never write `GITLAB_TOKEN` (or any other secret) into the client's MCP config file. Keep tokens in a separate env file or system secret store.
 - **Wrapper script**: each client launches the connector through a small wrapper (e.g. `run-gitlab-mcp.sh`) that sources the env file and execs `node dist/server.js`. See `examples/claude-code/run-gitlab-mcp.sh` for a reference implementation; the same script works for Codex and Cursor.
-- **Read-only**: all 20 tools are read-only. Verification flows below intentionally use only read operations.
+- **Read-only**: all 22 tools are read-only. Verification flows below intentionally use only read operations.
 
 ## Claude Code
 
@@ -85,7 +85,7 @@ Same as Claude Code:
 }
 ```
 
-After editing, reload the Cursor MCP settings. The MCP panel should show `gitlab` with **20 tools enabled**.
+After editing, reload the Cursor MCP settings. The MCP panel should show `gitlab` with **22 tools enabled**.
 
 ### Verification: validate one tool first
 
