@@ -10,7 +10,7 @@
 |--------|------|------------|
 | Claude Code | 已验证 | 在自托管 GitLab 上跑通完整只读流程 |
 | Codex | 已验证 | `gitlab_get_project`、`gitlab_list_branches`、`gitlab_list_merge_requests` |
-| Cursor | 已验证 | MCP 面板显示 27 tools enabled，单工具 `gitlab_list_branches` 调用返回预期分支 |
+| Cursor | 已验证 | MCP 面板显示 29 tools enabled，单工具 `gitlab_list_branches` 调用返回预期分支 |
 
 三个客户端用的都是同一套 stdio MCP server。下面的差异只体现在**怎么配置**，不在 connector 行为上。
 
@@ -19,7 +19,7 @@
 - **传输方式**：stdio MCP server（`dist/server.js`），不走 HTTP/SSE。
 - **token 处理**：`GITLAB_TOKEN`（或任何 secret）**不要**写进客户端 MCP 配置文件。token 放在独立 env 文件或系统级 secret 管理器里。
 - **wrapper 脚本**：每个客户端启动 connector 时都通过一个小 wrapper（如 `run-gitlab-mcp.sh`）来 source env 文件再 exec `node dist/server.js`。参考实现见 `examples/claude-code/run-gitlab-mcp.sh`，同一份脚本在 Codex、Cursor 下也能直接复用。
-- **只读**：27 个工具全部只读，下面的验证流程也只用读操作。
+- **只读**：29 个工具全部只读，下面的验证流程也只用读操作。
 
 ## Claude Code
 
@@ -85,7 +85,7 @@ codex mcp get gitlab
 }
 ```
 
-改完后在 Cursor 里 reload MCP 设置。MCP 面板应能看到 `gitlab`，并显示 **27 tools enabled**。
+改完后在 Cursor 里 reload MCP 设置。MCP 面板应能看到 `gitlab`，并显示 **29 tools enabled**。
 
 ### 验证：先单工具
 

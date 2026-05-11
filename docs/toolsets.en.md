@@ -13,7 +13,7 @@ This matters for:
 
 ## Current version (v0.1.x / v0.2.0)
 
-**Default behavior is unchanged**: all 27 read-only tools are exposed with no toolset configuration needed.
+**Default behavior is unchanged**: all 29 read-only tools are exposed with no toolset configuration needed.
 
 This means:
 - No changes to MCP client config
@@ -27,7 +27,7 @@ This means:
 | `read.projects` | `gitlab_list_projects`, `gitlab_get_project` | Yes |
 | `read.repository` | `gitlab_list_branches`, `gitlab_list_tags`, `gitlab_list_repository_tree`, `gitlab_get_repository_file`, `gitlab_list_commits`, `gitlab_get_commit`, `gitlab_compare_refs` | Yes |
 | `read.mrs` | `gitlab_list_merge_requests`, `gitlab_get_merge_request`, `gitlab_get_merge_request_diff`, `gitlab_get_merge_request_comments`, `gitlab_list_merge_request_pipelines` | Yes |
-| `read.ci` | `gitlab_get_pipeline_jobs`, `gitlab_get_job_log`, `gitlab_get_ci_config` | Yes |
+| `read.ci` | `gitlab_get_pipeline_jobs`, `gitlab_get_job_log`, `gitlab_get_ci_config`, `gitlab_list_job_artifacts`, `gitlab_get_job_artifact_file` | Yes |
 | `read.issues` | `gitlab_list_issues`, `gitlab_get_issue`, `gitlab_list_labels`, `gitlab_list_milestones` | Yes |
 | `read.releases` | `gitlab_list_releases`, `gitlab_get_release` | Yes |
 | `read.groups` | `gitlab_list_groups`, `gitlab_get_group`, `gitlab_list_group_projects` | Yes (membership excluded) |
@@ -42,7 +42,7 @@ This means:
 >
 > - The current version **does not read** the `toolsets` field
 > - The current version **does not read** the `GITLAB_TOOLSETS` environment variable
-> - Configuring these fields will not change the behavior of exposing all 27 read-only tools
+> - Configuring these fields will not change the behavior of exposing all 29 read-only tools
 >
 > Tool filtering will be implemented in v0.4.0 alongside write capabilities.
 
@@ -83,6 +83,6 @@ All of the above is a design draft — tool filtering is not implemented in the 
 ## Implementation plan
 
 Tool filtering will ship in v0.4.0 alongside write tools. Until then:
-- All 27 read-only tools remain fully exposed
+- All 29 read-only tools remain fully exposed
 - Config format stays backward-compatible (unknown fields are ignored)
 - Group definitions in this doc will be updated as tools are added, ensuring implementation matches the design

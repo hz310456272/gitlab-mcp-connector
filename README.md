@@ -21,7 +21,7 @@
 |--------|------|------|
 | Claude Code | 已验证 | 在自托管 GitLab 上完整跑通只读流程 |
 | Codex | 已验证 | `gitlab_get_project`、`gitlab_list_branches`、`gitlab_list_merge_requests` 验证通过 |
-| Cursor | 已验证 | MCP 面板显示 27 tools enabled，单工具 `gitlab_list_branches` 调用成功；如多工具 Agent run 卡住，建议先停止再单工具验证 |
+| Cursor | 已验证 | MCP 面板显示 29 tools enabled，单工具 `gitlab_list_branches` 调用成功；如多工具 Agent run 卡住，建议先停止再单工具验证 |
 
 详细配置和验证流程见 [docs/client-compatibility.md](docs/client-compatibility.md)（中文）或 [docs/client-compatibility.en.md](docs/client-compatibility.en.md)（English）。
 
@@ -133,7 +133,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（27 个，全部只读）
+## MCP 工具（29 个，全部只读）
 
 所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
@@ -166,10 +166,12 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 | `gitlab_get_release` | 获取指定 tag 的 release 详情 | `projectIdOrPath`、`tagName` |
 | `gitlab_search` | 搜索 GitLab 资源（9 个 scope，3 个级别） | `scope`、`search`、`projectIdOrPath`（项目级）、`groupIdOrPath`（组级）、`ref`、`searchType`、`page`、`perPage` |
 | `gitlab_get_ci_config` | 读取项目 CI 配置（原始文件 + GitLab CI Lint 解析结果） | `projectIdOrPath`、`ref`、`filePath`（默认 `.gitlab-ci.yml`）、`maxBytes`（默认 200KB） |
+| `gitlab_list_job_artifacts` | 列出 job 的 artifact 元数据 | `projectIdOrPath`、`jobId` |
+| `gitlab_get_job_artifact_file` | 读取 artifact archive 内指定文件内容 | `projectIdOrPath`、`jobId`、`artifactPath`、`maxBytes`（默认 200KB） |
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 27 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+当前 29 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
 
 ### 输出规范化
 
@@ -197,6 +199,8 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 - **Release 详情**：同列表但 description 完整、description_truncated 始终为 boolean
 - **Search**：输出 `{ level, scope, results }`，每个 scope 有专用 normalizer；issues/MR/milestones 保留 project_id + iid 用于后续工具调用；commits 保留 project_id；blobs/wiki_blobs 保留 project_id + ref + path；notes 保留 project_id + noteable_iid + noteable_type；blob data 和 note body 超过 500 字符时截断，带 `data_truncated`/`body_truncated` 标记
 - **CI config**：输出 file_path、ref、content（原始文件 UTF-8）、content_encoding、content_truncated、valid、errors、warnings、merged_yaml（include 展开后的完整 YAML）、merged_yaml_truncated、includes（type/location/context_project/context_sha，已过滤 blob/raw URL）、jobs（name/stage/when/allow_failure）、truncated、max_bytes。`filePath` 只用于读取原始文件；CI Lint GET 固定校验项目实际使用的 CI 配置入口（`.gitlab-ci.yml`），不一定等于自定义 `filePath`。当 `filePath` 不是 `.gitlab-ci.yml` 时输出 `lint_source: "project_default_ci_config"` 表明这一点。不使用 POST，不执行 pipeline，不模拟创建 pipeline，不下载 remote include
+- **Job artifacts（列表）**：job_id、job_name、stage、status、web_url、started_at、finished_at、duration、artifacts_expire_at（可为 null）、artifacts（file_type/filename/size 数组）
+- **Artifact file**：artifact_path、job_id、size、binary、encoding（base64 或 utf-8）、content、truncated、max_bytes。二进制文件 base64 编码，文本文件 UTF-8 解码。只能读取 archive artifact 内的文件，不能读取 trace 类型 job.log（job log 用 `gitlab_get_job_log`）。本轮不下载整个 archive zip，不写本地文件，不 keep/delete artifacts
 
 ### 截断策略
 
@@ -212,6 +216,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 - `gitlab_get_release` — 不做 maxBytes 限制，返回完整 release 数据。`description_truncated` 始终为 `false`。
 - `gitlab_search` — blob `data` 和 note `body` 固定截断到 500 字符，截断时分别设 `data_truncated: true`/`body_truncated: true`。其他 scope 不截断。
 - `gitlab_get_ci_config` — `maxBytes` 限制最终 JSON payload（默认 200KB）。截断优先 `merged_yaml`，再截断 `content`；稳定字段（valid/errors/warnings/includes/jobs）不截断。如果用户传入值太小，自动抬高到能容纳稳定元数据的最小预算；`max_bytes` 返回实际生效值。
+- `gitlab_get_job_artifact_file` — `maxBytes` 限制最终 JSON payload（默认 200KB，最小 150B）。二进制文件 base64 编码后截断；文本文件 UTF-8 解码后截断，截断时设 `truncated: true`。
 
 ## 客户端接入
 
