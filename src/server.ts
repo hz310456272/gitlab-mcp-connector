@@ -26,7 +26,7 @@ import { listJobArtifactsTool, getJobArtifactFileTool } from "./tools/artifacts.
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 try {
