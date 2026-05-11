@@ -16,7 +16,7 @@ export class GitLabClient {
     private readonly token: string,
   ) {}
 
-  private buildUrl(path: string, options?: RequestOptions): string {
+  buildUrl(path: string, options?: RequestOptions): string {
     const url = new URL(`/api/v4${path}`, this.baseUrl);
 
     if (options?.params) {
@@ -34,6 +34,10 @@ export class GitLabClient {
     }
 
     return url.toString();
+  }
+
+  getToken(): string {
+    return this.token;
   }
 
   async request<T>(path: string, options?: RequestOptions): Promise<T> {

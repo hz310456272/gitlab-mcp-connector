@@ -2,6 +2,7 @@ import { z } from "zod";
 import { encodeProjectPath } from "../gitlab/client.js";
 import { getClient, toolResult, toolError } from "./helpers.js";
 import { normalizeBranchList, normalizeTagList, normalizeTreeNodeList } from "./normalize.js";
+import { isBinary, byteLength } from "./binary.js";
 import { formatApiError } from "../errors.js";
 
 const listBranchesSchema = z.object({
@@ -101,20 +102,6 @@ export const listRepositoryTreeTool = {
 
 const DEFAULT_FILE_MAX_BYTES = 200 * 1024;
 const MIN_PAYLOAD_MAX_BYTES = 150;
-
-function byteLength(s: string): number {
-  return Buffer.byteLength(s, "utf8");
-}
-
-function isBinary(buf: Buffer): boolean {
-  for (let i = 0; i < buf.length; i++) {
-    const b = buf[i];
-    if (b < 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d) {
-      return true;
-    }
-  }
-  return false;
-}
 
 function truncateContentInPayload(payload: Record<string, unknown>, limit: number): void {
   const content = payload.content as string;
