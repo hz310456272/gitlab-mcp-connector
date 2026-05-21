@@ -2,10 +2,11 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, resolveHost } from "./config.js";
 import type { MultiHostConfig } from "./config.js";
 import { redact } from "./redaction.js";
 import { resolveToolsets } from "./toolset.js";
+import { checkTokenScope } from "./token-scope.js";
 import { listProjectsTool, getProjectTool } from "./tools/projects.js";
 import { listBranchesTool, listTagsTool, listRepositoryTreeTool, getRepositoryFileTool } from "./tools/repository.js";
 import {
@@ -40,10 +41,7 @@ try {
 }
 
 const toolsetConfig = resolveToolsets(config?.toolsets);
-
-if (toolsetConfig.isWriteEnabled) {
-  console.error('[gitlab-mcp-connector] Write toolset enabled. Write tools will be registered.');
-}
+let writeEnabled = toolsetConfig.isWriteEnabled;
 
 server.tool(listProjectsTool.name, listProjectsTool.description, listProjectsTool.schema.shape, listProjectsTool.handler);
 server.tool(getProjectTool.name, getProjectTool.description, getProjectTool.schema.shape, getProjectTool.handler);
@@ -75,11 +73,29 @@ server.tool(ciConfigTool.name, ciConfigTool.description, ciConfigTool.schema.sha
 server.tool(listJobArtifactsTool.name, listJobArtifactsTool.description, listJobArtifactsTool.schema.shape, listJobArtifactsTool.handler);
 server.tool(getJobArtifactFileTool.name, getJobArtifactFileTool.description, getJobArtifactFileTool.schema.shape, getJobArtifactFileTool.handler);
 
-if (toolsetConfig.isWriteEnabled) {
-  // Write tool registration placeholder (Phase 3 implementation)
-}
-
 async function main() {
+  // Token scope check — verify write access before registering write tools
+  if (writeEnabled && config) {
+    try {
+      const { baseUrl, token } = resolveHost(config);
+      const scopeResult = await checkTokenScope(baseUrl, token);
+      if (!scopeResult.hasWriteAccess) {
+        writeEnabled = false;
+        console.error(
+          `[gitlab-mcp-connector] Write tools disabled: ${scopeResult.reason}. ` +
+          `Either add 'api' scope to your token or remove 'write' from GITLAB_TOOLSETS.`,
+        );
+      }
+    } catch {
+      // resolveHost or checkTokenScope failure — keep writeEnabled as-is (optimistic)
+    }
+  }
+
+  if (writeEnabled) {
+    console.error('[gitlab-mcp-connector] Write toolset enabled. Write tools will be registered.');
+    // Write tool registration will happen here in Phase 3
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
