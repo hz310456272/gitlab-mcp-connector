@@ -1012,3 +1012,41 @@ export function normalizeCiLintJobs(jobs: Array<Record<string, unknown>>) {
     allow_failure: job.allow_failure,
   }));
 }
+
+// --- Created note (write response) ---
+
+export function normalizeCreatedNote(
+  note: Record<string, unknown>,
+): Record<string, unknown> {
+  const author = note.author as Record<string, unknown> | undefined;
+  return {
+    id: note.id,
+    body: note.body,
+    author: author ? { username: author.username, name: author.name } : undefined,
+    created_at: note.created_at,
+    updated_at: note.updated_at,
+    system: note.system,
+    resolvable: note.resolvable,
+    resolved: note.resolved,
+    confidential: note.confidential,
+    noteable_id: note.noteable_id,
+    noteable_type: note.noteable_type,
+    noteable_iid: note.noteable_iid,
+  };
+}
+
+// --- Created issue (write response) ---
+
+export function normalizeCreatedIssue(
+  issue: Record<string, unknown>,
+): Record<string, unknown> {
+  return normalizeIssue(issue as GitLabIssue);
+}
+
+// --- Created merge request (write response) ---
+
+export function normalizeCreatedMergeRequest(
+  mr: Record<string, unknown>,
+): Record<string, unknown> {
+  return normalizeMergeRequest(mr as GitLabMergeRequest);
+}
