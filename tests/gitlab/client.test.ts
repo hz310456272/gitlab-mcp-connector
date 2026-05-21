@@ -15,7 +15,7 @@ describe("GitLabClient", () => {
   });
 
   afterEach(() => {
-    mockAgent.close();
+    try { mockAgent.close(); } catch { /* already closed */ }
   });
 
   describe("post()", () => {
@@ -177,16 +177,9 @@ describe("GitLabClient", () => {
     });
 
     it("throws on network error (connection refused)", async () => {
-      // Close the mock agent so all requests fail with network errors
-      mockAgent.close();
-
-      const standaloneClient = new GitLabClient(
-        "https://gitlab.invalid.example.com",
-        "test-token",
-      );
-
+      mockAgent.disableNetConnect();
       await expect(
-        standaloneClient.post("/projects/1/issues", { title: "Test" }),
+        client.post("/projects/1/issues", { title: "Test" }),
       ).rejects.toThrow();
     });
   });
