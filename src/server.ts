@@ -3,7 +3,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig } from "./config.js";
+import type { MultiHostConfig } from "./config.js";
 import { redact } from "./redaction.js";
+import { resolveToolsets } from "./toolset.js";
 import { listProjectsTool, getProjectTool } from "./tools/projects.js";
 import { listBranchesTool, listTagsTool, listRepositoryTreeTool, getRepositoryFileTool } from "./tools/repository.js";
 import {
@@ -29,11 +31,18 @@ const server = new McpServer({
   version: "0.3.0",
 });
 
+let config: MultiHostConfig | null = null;
 try {
-  loadConfig();
+  config = loadConfig();
 } catch (e) {
   const msg = e instanceof Error ? e.message : String(e);
   console.error(`[gitlab-mcp-connector] Config error: ${redact(msg)}`);
+}
+
+const toolsetConfig = resolveToolsets(config?.toolsets);
+
+if (toolsetConfig.isWriteEnabled) {
+  console.error('[gitlab-mcp-connector] Write toolset enabled. Write tools will be registered.');
 }
 
 server.tool(listProjectsTool.name, listProjectsTool.description, listProjectsTool.schema.shape, listProjectsTool.handler);
@@ -65,6 +74,10 @@ server.tool(searchTool.name, searchTool.description, searchTool.schema.shape, se
 server.tool(ciConfigTool.name, ciConfigTool.description, ciConfigTool.schema.shape, ciConfigTool.handler);
 server.tool(listJobArtifactsTool.name, listJobArtifactsTool.description, listJobArtifactsTool.schema.shape, listJobArtifactsTool.handler);
 server.tool(getJobArtifactFileTool.name, getJobArtifactFileTool.description, getJobArtifactFileTool.schema.shape, getJobArtifactFileTool.handler);
+
+if (toolsetConfig.isWriteEnabled) {
+  // Write tool registration placeholder (Phase 3 implementation)
+}
 
 async function main() {
   const transport = new StdioServerTransport();

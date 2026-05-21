@@ -10,6 +10,7 @@ export interface HostConfig {
 export interface MultiHostConfig {
   defaultHost: string;
   hosts: Record<string, HostConfig>;
+  toolsets?: string;
 }
 
 export interface ResolvedHostConfig {
@@ -67,6 +68,13 @@ export function loadConfig(): MultiHostConfig {
     for (const host of Object.values(config.hosts)) {
       host.baseUrl = normalizeBaseUrl(host.baseUrl);
     }
+
+    // Apply GITLAB_TOOLSETS env var if set (overrides config file)
+    const toolsetsEnv = process.env.GITLAB_TOOLSETS;
+    if (toolsetsEnv) {
+      config.toolsets = toolsetsEnv;
+    }
+
     return config;
   }
 
@@ -81,12 +89,19 @@ export function loadConfig(): MultiHostConfig {
 
   validateBaseUrl(baseUrl, "GITLAB_BASE_URL");
 
-  return {
+  const result: MultiHostConfig = {
     defaultHost: "default",
     hosts: {
       default: { baseUrl: normalizeBaseUrl(baseUrl), tokenEnv: "GITLAB_TOKEN" },
     },
   };
+
+  const toolsetsEnv = process.env.GITLAB_TOOLSETS;
+  if (toolsetsEnv) {
+    result.toolsets = toolsetsEnv;
+  }
+
+  return result;
 }
 
 export function resolveHost(

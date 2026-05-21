@@ -67,6 +67,13 @@ describe("MCP smoke test", () => {
       for (const name of expectedTools) {
         expect(toolNames).toContain(name);
       }
+
+      // Verify no write tools appear when GITLAB_TOOLSETS is not set
+      const writeToolPrefixes = ["gitlab_create_", "gitlab_cancel_", "gitlab_retry_"];
+      for (const prefix of writeToolPrefixes) {
+        const writeTools = toolNames.filter((n) => n.startsWith(prefix));
+        expect(writeTools).toEqual([]);
+      }
     } finally {
       await client.close();
     }
