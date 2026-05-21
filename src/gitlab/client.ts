@@ -73,6 +73,26 @@ export class GitLabClient {
 
     return response.text();
   }
+
+  async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+    const response = await fetch(this.buildUrl(path), {
+      method: "POST",
+      headers: {
+        "PRIVATE-TOKEN": this.token,
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const responseBody = redact(await response.text().catch(() => ""));
+      throw new GitLabApiError(response.status, response.statusText, responseBody);
+    }
+
+    return (await response.json()) as T;
+  }
 }
 
 export function encodeProjectPath(path: string): string {

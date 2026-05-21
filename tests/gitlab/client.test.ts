@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { MockAgent, setGlobalDispatcher } from "undici";
 import { GitLabClient } from "../../src/gitlab/client.js";
 import { GitLabApiError } from "../../src/errors.js";
@@ -55,7 +55,6 @@ describe("GitLabClient", () => {
 
       // The mock matched only if all conditions (including headers) are satisfied
       // We verify via a second intercept that explicitly checks headers
-      let capturedHeaders: Record<string, string> = {};
       mockAgent
         .get("https://gitlab.example.com")
         .intercept({
@@ -86,17 +85,14 @@ describe("GitLabClient", () => {
           path: (p: string) => p === "/api/v4/projects/5/issues",
           method: "POST",
         })
-        .reply((options) => {
-          // Capture the request headers
+        .reply(201, (options) => {
+          // Capture the request headers via the reply body callback
           if (options.headers) {
             for (const [key, value] of Object.entries(options.headers)) {
               capturedHeaders[key.toLowerCase()] = String(value);
             }
           }
-          return {
-            statusCode: 201,
-            body: JSON.stringify({ id: 5 }),
-          };
+          return { id: 5 };
         });
 
       await client.post("/projects/5/issues", { title: "Verify Headers" });
@@ -128,12 +124,9 @@ describe("GitLabClient", () => {
         .intercept({ path: "/api/v4/projects/1/issues", method: "POST" })
         .reply(401, { message: "Unauthorized" });
 
-      await expect(
-        client.post("/projects/1/issues", { title: "Test" }),
-      ).rejects.toThrow(GitLabApiError);
-
       try {
         await client.post("/projects/1/issues", { title: "Test" });
+        expect.unreachable("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(GitLabApiError);
         expect((error as GitLabApiError).status).toBe(401);
