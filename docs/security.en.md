@@ -1,20 +1,57 @@
 # Security
 
-> 中文版见 [security.md](security.md)。
+> 中文版见 [security.md](security.md)
 
-## Read-only by design
+## Read-only by default
 
-This MCP server only exposes read operations against the GitLab API. It will never:
+This MCP server only exposes **read-only** tools by default. Without the `write` toolset configured:
 
-- Merge a merge request
-- Approve a merge request
-- Push commits or create branches
-- Create, update, or delete MRs, comments, or issues
-- Retry or cancel pipelines
-- Trigger jobs
-- Modify any GitLab resource
+- `tools/list` returns no write tools
+- Write code paths are never triggered
+- Behavior is identical to a pure read-only server
 
-The server does not contain any code path that makes `POST`, `PUT`, `PATCH`, or `DELETE` requests to GitLab.
+## Controlled write capabilities (v0.4.0)
+
+When write tools are enabled via `GITLAB_TOOLSETS="write"` or `"toolsets": "write"` in config.json, 7 additional write operations are exposed. Write tools are protected by the following safety mechanisms:
+
+### Risk levels
+
+| Level | Operations | Requires confirm |
+|-------|-----------|------------------|
+| LOW | Create issue, create MR, MR comment, issue comment | No |
+| HIGH | Retry job, cancel pipeline, cancel job | Yes |
+
+HIGH-risk operations require `confirm: true` to proceed; otherwise they are rejected.
+
+### Write-safety middleware
+
+Every write tool passes through a unified middleware pipeline:
+
+1. **dryRun preview** — `dryRun: true` returns a request summary without calling the API
+2. **confirm gate** — HIGH-risk operations require `confirm: true`
+3. **Dedup window** — duplicate requests within a short window return cached results
+4. **Audit log** — structured JSON emitted to stderr (no tokens)
+
+### Audit log format
+
+```json
+{
+  "timestamp": "2026-05-22T01:00:00.000Z",
+  "tool": "gitlab_create_issue",
+  "method": "POST",
+  "path": "/projects/group%2Fproject/issues",
+  "risk_level": "low",
+  "status": "success"
+}
+```
+
+Status values: `preview` (dryRun), `rejected` (no confirm), `success`, `error`.
+
+### Required token scopes
+
+- Read tools: at minimum `read_api` scope
+- Write tools: requires `api` scope
+- CI operations (retry / cancel): requires `api` scope and the user must have appropriate project permissions
 
 ## Token handling
 
@@ -46,6 +83,11 @@ Tool responses are normalized to include only stable, useful fields. Raw GitLab 
 ## Truncation
 
 Large outputs (MR diffs, job logs) are truncated to stay within configurable byte limits. Limits are measured in **UTF-8 bytes**. When truncation occurs, the response includes `truncated: true`. With very small limits, the content may be empty but the `truncated` flag will be set.
+
+Affected tools:
+
+- `gitlab_get_merge_request_diff` — `maxBytes` limits total JSON payload size; truncates diff array by file when exceeded.
+- `gitlab_get_job_log` — `maxBytes` limits total JSON payload size (default 200KB).
 
 ## User-Agent
 

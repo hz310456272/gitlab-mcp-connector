@@ -2,13 +2,11 @@
 
 > 中文版见 [README.md](README.md)。
 
-A **read-only** MCP (Model Context Protocol) server for GitLab.
-
-Enables AI coding agents (Claude Code, Codex, Cursor, etc.) to summarize MRs, review code, check pipelines, and diagnose CI failures — without any write access.
+A GitLab MCP (Model Context Protocol) server for AI coding agents (Claude Code, Codex, Cursor, etc.) to summarize MRs, review code, check pipelines, diagnose CI failures — and optionally perform controlled write operations (create issues/MRs, comment, retry/cancel CI).
 
 ## Features
 
-- **Read-only by design** — no merge, push, approve, or any mutating operations
+- **Read-only by default, controlled write** — write tools are off by default; enable via `GITLAB_TOOLSETS="write"`; HIGH-risk operations require `confirm`
 - **GitLab.com & self-hosted** — works with any GitLab instance
 - **Multi-host support** — connect to multiple GitLab instances simultaneously
 - **Security-first** — connector never prints tokens; API errors are redacted; raw metadata is normalized. Note: tool output (comments, diffs, job logs) returns user-visible GitLab content and may contain sensitive information committed by users.
@@ -132,7 +130,7 @@ In your MCP client config, only set `GITLAB_MCP_CONFIG`:
 
 Each MCP tool accepts an optional `host` parameter to select which instance to query.
 
-## MCP Tools (29 tools, all read-only)
+## MCP Tools (29 read-only + 7 write = 36 total)
 
 All tools return normalized, stable-field JSON. Unstable fields such as permissions, avatar URLs, and runner details are filtered out. Commit tools intentionally keep author_email and committer_email because they are useful for identifying authors, bots, and committers in engineering workflows. User-generated content such as MR comments, diffs, and job logs is returned as-is and may contain sensitive information.
 
@@ -170,7 +168,23 @@ All tools return normalized, stable-field JSON. Unstable fields such as permissi
 
 All tools accept an optional `host` parameter (multi-host mode).
 
-All 29 tools are read-only and exposed by default. Future versions will support grouping tools via toolsets — see [docs/toolsets.en.md](docs/toolsets.en.md).
+### Write tools (requires `write` toolset)
+
+Write tools are not exposed by default. Enable via `export GITLAB_TOOLSETS="write"` or `"toolsets": "write"` in config.json.
+
+| Tool | Description | Risk | Key Parameters |
+|------|-------------|------|----------------|
+| `gitlab_create_merge_request_note` | Create a note on a merge request | LOW | `projectIdOrPath`, `mergeRequestIid`, `body`, `dryRun` |
+| `gitlab_create_issue_note` | Create a note on an issue | LOW | `projectIdOrPath`, `issueIid`, `body`, `dryRun` |
+| `gitlab_create_issue` | Create an issue | LOW | `projectIdOrPath`, `title`, `description`, `labels`, `assigneeIds`, `milestoneId`, `dryRun` |
+| `gitlab_create_merge_request` | Create a merge request | LOW | `projectIdOrPath`, `sourceBranch`, `targetBranch`, `title`, `description`, `labels`, `assigneeIds`, `reviewerIds`, `milestoneId`, `dryRun` |
+| `gitlab_retry_job` | Retry a failed job | HIGH | `projectIdOrPath`, `jobId`, `dryRun`, `confirm` |
+| `gitlab_cancel_pipeline` | Cancel a pipeline | HIGH | `projectIdOrPath`, `pipelineId`, `dryRun`, `confirm` |
+| `gitlab_cancel_job` | Cancel a job | HIGH | `projectIdOrPath`, `jobId`, `dryRun`, `confirm` |
+
+All write tools support `dryRun: true` preview. HIGH-risk operations require `confirm: true`. See [docs/toolsets.en.md](docs/toolsets.en.md) for details.
+
+The 29 read-only tools are exposed by default with no extra configuration.
 
 ### Output normalization
 
@@ -218,7 +232,11 @@ Each tool returns only stable, useful fields:
 
 ### Security boundary
 
-This server **never** performs write operations: no merge, approve, push, retry, cancel, comment, create, or delete. See [docs/security.en.md](docs/security.en.md) for full details.
+- **Read-only by default**: without the `write` toolset, the connector cannot merge MRs, post comments, retry pipelines, or modify any GitLab resource.
+- **Controlled writes**: when write tools are enabled, HIGH-risk operations require `confirm: true`; all writes support `dryRun` preview; audit logs are emitted to stderr.
+- **No token leaks**: the connector never prints tokens to stdout/stderr; API errors are redacted.
+
+See [docs/security.en.md](docs/security.en.md) for full details.
 
 ## Integration Examples
 
@@ -310,7 +328,7 @@ If tools don't appear in Claude Code:
 4. Test the server manually: `~/.local/bin/run-gitlab-mcp.sh` then type `{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"0.0.1"}}}` + Enter + Ctrl+D
 5. Check that `node /path/to/dist/server.js` can start without errors
 
-This is a **read-only** connector. It cannot merge MRs, post comments, retry pipelines, or modify any GitLab resource.
+This is a **read-only by default** connector. Write tools are off unless `GITLAB_TOOLSETS="write"` is set.
 
 ## Self-Hosted GitLab
 

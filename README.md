@@ -2,11 +2,11 @@
 
 > English version: [README.en.md](README.en.md)
 
-一个只读的 GitLab MCP 连接器，让 Claude Code、Codex、Cursor 等 AI 编程工具安全读取 GitLab 项目、MR、分支、流水线和 Job 日志。
+一个 GitLab MCP 连接器，让 Claude Code、Codex、Cursor 等 AI 编程工具读取 GitLab 项目、MR、分支、流水线和 Job 日志，并可选地执行受控写操作（创建 issue/MR、评论、retry/cancel CI）。
 
 ## 功能特性
 
-- **只读设计** — 不做 merge、push、approve、comment、retry、cancel、delete 任何写操作
+- **默认只读，写操作受控启用** — 写工具默认关闭，通过 `GITLAB_TOOLSETS="write"` 显式启用，HIGH 风险操作需 confirm
 - **支持 GitLab.com 和私有化 GitLab** — 任意 GitLab 实例均可
 - **支持多 GitLab host** — 一个 connector 同时连接多个 GitLab 实例
 - **token 不写入客户端配置** — 通过 wrapper 脚本 + env 文件加载，避免在 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 中出现明文 token
@@ -133,7 +133,7 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 > 不要把 `GITLAB_TOKEN` 或任何真实 token 写进 `~/.claude.json`、`~/.codex/config.toml`、`~/.cursor/mcp.json` 等客户端配置文件。
 
-## MCP 工具（29 个，全部只读）
+## MCP 工具（29 只读 + 7 写，共 36 个）
 
 所有工具返回 normalize 后的稳定字段 JSON。permissions、avatar URL、runner 等非稳定字段会被过滤；commit 工具会保留 author_email / committer_email，便于企业研发场景中识别作者、bot 或提交者；MR 评论 body、diff 文本、Job 日志等用户内容原样返回，可能含敏感信息，需要按权限边界对待。
 
@@ -171,7 +171,23 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 所有工具均接受可选的 `host` 参数（多 host 模式下生效）。
 
-当前 29 个工具全部只读，默认全部暴露。未来支持按 toolset 分组启用，详见 [docs/toolsets.md](docs/toolsets.md)。
+### 写工具（需启用 `write` toolset）
+
+写工具默认不暴露。通过 `export GITLAB_TOOLSETS="write"` 或 config.json 中 `"toolsets": "write"` 启用。
+
+| 工具 | 说明 | 风险 | 主要参数 |
+|------|------|------|----------|
+| `gitlab_create_merge_request_note` | 在 MR 上创建评论 | LOW | `projectIdOrPath`、`mergeRequestIid`、`body`、`dryRun` |
+| `gitlab_create_issue_note` | 在 issue 上创建评论 | LOW | `projectIdOrPath`、`issueIid`、`body`、`dryRun` |
+| `gitlab_create_issue` | 创建 issue | LOW | `projectIdOrPath`、`title`、`description`、`labels`、`assigneeIds`、`milestoneId`、`dryRun` |
+| `gitlab_create_merge_request` | 创建 MR | LOW | `projectIdOrPath`、`sourceBranch`、`targetBranch`、`title`、`description`、`labels`、`assigneeIds`、`reviewerIds`、`milestoneId`、`dryRun` |
+| `gitlab_retry_job` | 重试失败的 job | HIGH | `projectIdOrPath`、`jobId`、`dryRun`、`confirm` |
+| `gitlab_cancel_pipeline` | 取消 pipeline | HIGH | `projectIdOrPath`、`pipelineId`、`dryRun`、`confirm` |
+| `gitlab_cancel_job` | 取消 job | HIGH | `projectIdOrPath`、`jobId`、`dryRun`、`confirm` |
+
+所有写工具支持 `dryRun: true` 预览，HIGH 风险操作必须 `confirm: true`。详见 [docs/toolsets.md](docs/toolsets.md)。
+
+29 个只读工具默认全部暴露，无需额外配置。
 
 ### 输出规范化
 
@@ -230,7 +246,8 @@ MCP 客户端配置里只设 `GITLAB_MCP_CONFIG`：
 
 ## 安全边界
 
-- **只读**：connector 没有任何写路径，不能 merge MR、不能发评论、不能 retry pipeline、不能改任何 GitLab 资源。
+- **默认只读**：未启用 `write` toolset 时，connector 行为与纯只读版本完全一致，不能 merge MR、不能发评论、不能 retry pipeline。
+- **写操作受控**：启用写工具后，HIGH 风险操作需 `confirm: true`，所有写操作支持 `dryRun` 预览，操作审计日志输出到 stderr。
 - **token 不外泄**：服务端永不把 token 打进 stdout/stderr，错误信息经 redact。
 - **用户内容按权限边界对待**：MR 评论、diff、Job 日志属于"调用方在 GitLab 上本来就有权限看到的内容"，原样返回。其中可能包含用户在 commit、评论、CI 输出里夹带的敏感信息——这是 GitLab 内容本身的属性，不是 connector 引入的。
 

@@ -13,10 +13,12 @@ export GITLAB_TOKEN="your-personal-access-token"
 
 - `GITLAB_BASE_URL` — GitLab 实例的 base URL。不设置时默认 `https://gitlab.com`。必须是 `http://` 或 `https://` 开头的合法 URL。末尾斜杠会自动去掉。
 - `GITLAB_TOKEN` — GitLab personal access token。简单模式下必填，空值等同于未设置。
+- `GITLAB_TOOLSETS` — 可选。启用的 toolset，逗号分隔。设为 `write` 可启用写工具。不设置时只暴露只读工具。
 
 ### Token 所需权限
 
-至少需要 `read_api` 权限。如果要读取仓库内容（分支、tag、diff 等），需要 `api` 权限，或者目标项目本身是 public。
+- **只读工具**：至少 `read_api` 权限。如果要读取仓库内容（分支、tag、diff 等），需要 `api` 权限，或者目标项目本身是 public。
+- **写工具**：需要 `api` 权限（`read_api` 不够）。CI 操作（retry / cancel）还需用户有对应项目权限。
 
 ## 多 host 模式
 
@@ -31,6 +33,7 @@ export GITLAB_MCP_CONFIG=/path/to/config.json
 ```json
 {
   "defaultHost": "company",
+  "toolsets": "write",
   "hosts": {
     "company": {
       "baseUrl": "https://gitlab.example.com",
@@ -52,6 +55,7 @@ export GITLAB_MCP_CONFIG=/path/to/config.json
 | `hosts` | 是 | host alias 到连接配置的映射（必须是对象，不能是数组） |
 | `hosts.*.baseUrl` | 是 | GitLab 实例 base URL（必须是 `http://` 或 `https://` 开头的合法 URL，末尾斜杠会自动去掉） |
 | `hosts.*.tokenEnv` | 是 | 存储 token 的**环境变量名**，不是 token 本身 |
+| `toolsets` | 否 | 启用的 toolset，逗号分隔字符串（如 `"write"`）。不设置时只暴露只读工具 |
 
 ### 选择 host
 

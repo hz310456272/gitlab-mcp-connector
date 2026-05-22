@@ -13,10 +13,12 @@ export GITLAB_TOKEN="your-personal-access-token"
 
 - `GITLAB_BASE_URL` — Base URL of your GitLab instance. Defaults to `https://gitlab.com` if omitted. Must be a valid URL starting with `http://` or `https://`. Trailing slashes are stripped automatically.
 - `GITLAB_TOKEN` — GitLab personal access token. Required in simple mode. Empty values are treated as unset.
+- `GITLAB_TOOLSETS` — Optional. Comma-separated list of toolsets to enable. Set to `write` to enable write tools. When unset, only read-only tools are exposed.
 
 ### Required token scopes
 
-The token needs at minimum `read_api` scope. For accessing repository content (branches, tags, diffs), ensure the token has `api` scope or the project is public.
+- **Read tools**: at minimum `read_api` scope. For accessing repository content (branches, tags, diffs), ensure the token has `api` scope or the project is public.
+- **Write tools**: requires `api` scope (`read_api` is not sufficient). CI operations (retry / cancel) also require the user to have appropriate project permissions.
 
 ## Multi-Host Mode
 
@@ -31,6 +33,7 @@ export GITLAB_MCP_CONFIG=/path/to/config.json
 ```json
 {
   "defaultHost": "company",
+  "toolsets": "write",
   "hosts": {
     "company": {
       "baseUrl": "https://gitlab.example.com",
@@ -52,6 +55,7 @@ export GITLAB_MCP_CONFIG=/path/to/config.json
 | `hosts` | Yes | Map of host aliases to connection configs (must be an object, not an array) |
 | `hosts.*.baseUrl` | Yes | GitLab instance base URL (must be a valid `http://` or `https://` URL; trailing slashes are stripped automatically) |
 | `hosts.*.tokenEnv` | Yes | Name of the environment variable holding the token (not the token itself) |
+| `toolsets` | No | Comma-separated string of enabled toolsets (e.g. `"write"`). When unset, only read-only tools are exposed |
 
 ### Selecting a host
 
