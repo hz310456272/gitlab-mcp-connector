@@ -26,6 +26,10 @@ import { listGroupsTool, getGroupTool, listGroupProjectsTool } from "./tools/gro
 import { searchTool } from "./tools/search.js";
 import { ciConfigTool } from "./tools/ciConfig.js";
 import { listJobArtifactsTool, getJobArtifactFileTool } from "./tools/artifacts.js";
+import { createMergeRequestNoteTool, createIssueNoteTool } from "./tools/write-notes.js";
+import { createIssueTool } from "./tools/write-issues.js";
+import { createMergeRequestTool } from "./tools/write-mrs.js";
+import { retryJobTool, cancelPipelineTool, cancelJobTool } from "./tools/write-ci.js";
 
 const server = new McpServer({
   name: "gitlab-mcp-connector",
@@ -93,7 +97,13 @@ async function main() {
 
   if (writeEnabled) {
     console.error('[gitlab-mcp-connector] Write toolset enabled. Write tools will be registered.');
-    // Write tool registration will happen here in Phase 3
+    server.tool(createMergeRequestNoteTool.name, createMergeRequestNoteTool.description, createMergeRequestNoteTool.schema.shape, createMergeRequestNoteTool.handler);
+    server.tool(createIssueNoteTool.name, createIssueNoteTool.description, createIssueNoteTool.schema.shape, createIssueNoteTool.handler);
+    server.tool(createIssueTool.name, createIssueTool.description, createIssueTool.schema.shape, createIssueTool.handler);
+    server.tool(createMergeRequestTool.name, createMergeRequestTool.description, createMergeRequestTool.schema.shape, createMergeRequestTool.handler);
+    server.tool(retryJobTool.name, retryJobTool.description, retryJobTool.schema.shape, retryJobTool.handler);
+    server.tool(cancelPipelineTool.name, cancelPipelineTool.description, cancelPipelineTool.schema.shape, cancelPipelineTool.handler);
+    server.tool(cancelJobTool.name, cancelJobTool.description, cancelJobTool.schema.shape, cancelJobTool.handler);
   }
 
   const transport = new StdioServerTransport();
